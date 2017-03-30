@@ -1,147 +1,281 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-
-{-# OPTIONS_GHC -fexpose-all-unfoldings #-}
-{-# OPTIONS_GHC -fplugin=ConCat.Plugin #-}
-{-# OPTIONS_GHC -fsimpl-tick-factor=2800 #-}
-
-{-# OPTIONS_GHC -Wall #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 module Categorical where
 
-import ConCat.AltCat (ccc)
-import ConCat.Category
-import Control.Arrow (Kleisli(..), arr)
-import Control.Monad
-import Control.Monad.Free
-import Control.Monad.Writer
-import Data.Set
-import Debug.Trace
 import Prelude hiding (id, (.), curry, uncurry, const)
 
-data ExprF r
-    = Neg r
-    | Add r r
-    | Sub r r
-    | Mul r r
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+import Data.Monoid
+import Data.Set
 
-type Expr = Free ExprF
+import ConCat.Category
 
-newtype ConstArr f a b = ConstArr { getConstArr :: f a -> f b }
+{------------------------------------------------------------------------}
 
-instance Category (ConstArr Expr) where
-    id = ConstArr id
-    ConstArr f . ConstArr g = ConstArr (f . g)
+type (~>) = Cat
+type (×) = Prod Cat
+type (+) = Coprod Cat
 
-instance TerminalCat (ConstArr Expr) where
-    it = ConstArr (arr void)
+data Cat a b where
+    -- Category
+    Id      :: a ~> a
+    Compose :: b ~> c -> a ~> b -> a ~> c
 
-instance BottomCat (ConstArr Expr) a b where
-    bottomC = ConstArr (arr undefined)
+    -- TerminalCat
+    It :: a ~> ()
 
--- instance UnknownCat (ConstArr Expr) a b where
--- instance EqCat (ConstArr Expr) a where
--- instance OrdCat (ConstArr Expr) a where
--- instance Num a => FractionalCat (ConstArr Expr) a where
--- instance RealFracCat (ConstArr Expr) a b where
--- instance FloatingCat (ConstArr Expr) a where
--- instance FromIntegralCat (ConstArr Expr) a b where
+    -- BottomCat
+    Bottom :: a ~> b
 
--- instance DistribCat (ConstArr Expr) where
---     distl = ConstArr distl
---     distr = ConstArr distr
+    -- UnknownCat
+    Unknown :: a ~> b
 
--- instance CoerceCat (ConstArr Expr) a b where
---     coerceC = ConstArr coerceC
+    -- CoerceCat
+    Coerce :: a ~> b
 
-instance Num a => EnumCat (ConstArr Expr) a where
+    -- EqCat
+    Equal    :: a × a ~> BoolOf Cat
+    NotEqual :: a × a ~> BoolOf Cat
 
-instance BoolCat (ConstArr Expr) where
-    notC = ConstArr (fmap notC)
-    andC = ConstArr (fmap andC)
-    orC  = ConstArr (fmap orC)
-    xorC = ConstArr (fmap xorC)
+    -- OrdCat
+    LessThan           :: a × a ~> BoolOf Cat
+    GreaterThan        :: a × a ~> BoolOf Cat
+    LessThanOrEqual    :: a × a ~> BoolOf Cat
+    GreaterThanOrEqaul :: a × a ~> BoolOf Cat
 
-instance IfCat (ConstArr Expr) a where
-    ifC = ConstArr (fmap ifC)
+    -- DistribCat
+    Distl :: (a × (u + v)) ~> ((a × u) + (a × v))
+    Distr :: ((u + v) × b) ~> ((u × b) + (v × b))
 
-instance ProductCat (ConstArr Expr) where
-    exl = ConstArr (fmap exl)
-    exr = ConstArr (fmap exr)
-    ConstArr f &&& ConstArr g = ConstArr (\x -> liftM2 (,) (f x) (g x))
+    -- BoolCat
+    Not :: BoolOf Cat ~> BoolOf Cat
+    And :: BoolOf Cat × BoolOf Cat ~> BoolOf Cat
+    Or  :: BoolOf Cat × BoolOf Cat ~> BoolOf Cat
+    Xor :: BoolOf Cat × BoolOf Cat ~> BoolOf Cat
 
-instance CoproductCat (ConstArr Expr) where
-    inl = ConstArr (fmap inl)
-    inr = ConstArr (fmap inr)
-    ConstArr f ||| ConstArr g = ConstArr (\p -> p >>= \p' -> case p' of
-                                                  Left x -> f (return x)
-                                                  Right x -> g (return x))
+    -- IfCat
+    If :: BoolOf k × (a × a) ~> a
 
-instance ConstCat (ConstArr Expr) a where
-    const b = ConstArr (const (pure b))
+    -- ProductCat
+    Exl   :: (a × b) ~> a
+    Exr   :: (a × b) ~> b
+    Dup   :: a ~> (a × a)
+    SwapP :: (a × b) ~> (b × a)
+    Cross :: (a ~> c) -> (b ~> d) -> (a × b) ~> (c × d)
+    Fork  :: (a ~> c) -> (a ~> d) -> a ~> (c × d)
 
-instance ClosedCat (ConstArr Expr) where
-    apply = ConstArr (fmap apply)
-    curry (ConstArr f) =
-        error "What should curry be?"
-        -- ConstArr $ \a -> return (\b -> f ((,) <$> a <*> b))
+    -- CoproductCat
+    Inl    :: a ~> (a + b)
+    Inr    :: b ~> (a + b)
+    Jam    :: (a + a) ~> a
+    SwapS  :: (a + b) ~> (b + a)
+    Across :: (c ~> a) -> (d ~> b) -> (c + d) ~> (a + b)
+    Split  :: (c ~> a) -> (d ~> a) -> (c + d) ~> a
 
-instance NumCat (ConstArr Expr) a where
-    negateC = ConstArr (Free . Neg)
-    addC    = ConstArr (\p -> p >>= \(x, y) -> Free (Add (Pure x) (Pure y)))
-    subC    = ConstArr (\p -> p >>= \(x, y) -> Free (Sub (Pure x) (Pure y)))
-    mulC    = ConstArr (\p -> p >>= \(x, y) -> Free (Mul (Pure x) (Pure y)))
-    powIC   = error "powIC not supported"
+    -- ConstCat
+    Const :: Show b => b -> a ~> b
 
--- newtype Gather a b = Gather { runGather :: Kleisli (Writer (Set Int)) a b }
+    -- ClosedCat
+    Apply   :: (Exp Cat a b × a) ~> b
+    Curry   :: ((a × b) ~> c)     -> (a ~> Exp Cat b c)
+    Uncurry :: (a ~> Exp Cat b c) -> ((a × b) ~> c)
 
-newtype Gather a b = Gather { runGather :: Kleisli (Writer (Set Int)) a b }
+    -- ENumCat
+    Succ :: a ~> a
+    Pred :: a ~> a
+
+    -- NumCat
+    Negate :: a ~> a
+    Add    :: a × a ~> a
+    Sub    :: a × a ~> a
+    Mul    :: a × a ~> a
+    PowI   :: a × Int ~> b
+
+    -- FractionalCat
+    Recip  :: a ~> a
+    Divide :: (a × a) ~> a
+
+    -- RealFracCat
+    Floor   :: a ~> b
+    Ceiling :: a ~> b
+
+    -- FloatingCat
+    Exp :: a ~> a
+    Cos :: a ~> a
+    Sin :: a ~> a
+
+    -- FromIntegralCat
+    FromIntegral :: a ~> b
+
+instance Show (Cat a b) where
+    show = \case
+        Id                 -> "Id"
+        Compose f g        -> "(" ++ show f ++ " ∘ " ++ show g ++ ")"
+        It                 -> "It"
+        Bottom             -> "Bottom"
+        Unknown            -> "Unknown"
+        Equal              -> "Equal"
+        NotEqual           -> "NotEqual"
+        LessThan           -> "LessThan"
+        GreaterThan        -> "GreaterThan"
+        LessThanOrEqual    -> "LessThanOrEqual"
+        GreaterThanOrEqaul -> "GreaterThanOrEqaul"
+        Distl              -> "Distl"
+        Distr              -> "Distr"
+        Coerce             -> "Coerce"
+        Not                -> "Not"
+        And                -> "And"
+        Or                 -> "Or"
+        Xor                -> "Xor"
+        If                 -> "If"
+        Exl                -> "Exl"
+        Exr                -> "Exr"
+        Dup                -> "Dup"
+        SwapP              -> "SwapP"
+        Cross f g          -> "(" ++ show f ++ " *** " ++ show g ++ ")"
+        Fork f g           -> "(" ++ show f ++ " &&& " ++ show g ++ ")"
+        Inl                -> "Inl"
+        Inr                -> "Inr"
+        Jam                -> "Jam"
+        SwapS              -> "Swaps"
+        Across f g         -> "(" ++ show f ++ " +++ " ++ show g ++ ")"
+        Split f g          -> "(" ++ show f ++ " ||| " ++ show g ++ ")"
+        Const b            -> "Const " ++ show b
+        Apply              -> "Apply"
+        Curry f            -> "(Curry " ++ show f ++ ")"
+        Uncurry f          -> "(Uncurry " ++ show f ++ ")"
+        Succ               -> "Succ"
+        Pred               -> "Pred"
+        Negate             -> "Negate"
+        Add                -> "Add"
+        Sub                -> "Sub"
+        Mul                -> "Mul"
+        PowI               -> "PowI"
+        Recip              -> "Recip"
+        Divide             -> "Divide"
+        Floor              -> "Floor"
+        Ceiling            -> "Ceiling"
+        Exp                -> "Exp"
+        Cos                -> "Cos"
+        Sin                -> "Sin"
+        FromIntegral       -> "FromIntegral"
+
+instance Category Cat where
+    id  = Id
+    (.) = Compose
+
+instance TerminalCat Cat where
+    it = It
+
+instance BottomCat Cat a b where
+    bottomC = Bottom
+
+instance UnknownCat Cat a b where
+    unknownC = Unknown
+
+instance EqCat Cat a where
+    equal    = Equal
+    notEqual = NotEqual
+
+instance OrdCat Cat a where
+    lessThan           = LessThan
+    greaterThan        = GreaterThan
+    lessThanOrEqual    = LessThanOrEqual
+    greaterThanOrEqual = GreaterThanOrEqaul
+
+instance Num a => FractionalCat Cat a where
+    recipC = Recip
+    divideC = Divide
+
+instance RealFracCat Cat a b where
+    floorC = Floor
+    ceilingC = Ceiling
+
+instance FloatingCat Cat a where
+    expC = Exp
+    cosC = Cos
+    sinC = Sin
+
+instance FromIntegralCat Cat a b where
+    fromIntegralC = FromIntegral
+
+instance DistribCat Cat where
+    distl = Distl
+    distr = Distr
+
+instance CoerceCat Cat a b where
+    coerceC = Coerce
+
+instance (Num a, Show a) => EnumCat Cat a where
+    succC = Succ
+    predC = Pred
+
+instance BoolCat Cat where
+    notC = Not
+    andC = And
+    orC  = Or
+    xorC = Xor
+
+instance IfCat Cat a where
+    ifC = If
+
+instance ProductCat Cat where
+    exl   = Exl
+    exr   = Exr
+    dup   = Dup
+    swapP = SwapP
+    (***) = Cross
+    (&&&) = Fork
+
+instance CoproductCat Cat where
+    inl   = Inl
+    inr   = Inr
+    jam   = Jam
+    swapS = SwapS
+    (+++) = Across
+    (|||) = Split
+
+instance Show a => ConstCat Cat a where
+    const = Const
+
+instance ClosedCat Cat where
+    apply = Apply
+    curry = Curry
+    uncurry = Uncurry
+
+instance NumCat Cat a where
+    negateC = Negate
+    addC    = Add
+    subC    = Sub
+    mulC    = Mul
+    powIC   = PowI
+
+{------------------------------------------------------------------------}
+
+newtype Gather a b = Gather { runGather :: Set Int }
+
+gather :: Gather a b -> Set Int
+gather = runGather
 
 instance Category Gather where
-    id = Gather id
-    Gather f . Gather g = Gather (f . g)
+    id = Gather empty
+    Gather f . Gather g = Gather (f <> g)
 
 instance ProductCat Gather where
-    exl = Gather exl
-    exr = Gather exr
-    Gather f &&& Gather g = Gather (f &&& g)
+    exl = Gather empty
+    exr = Gather empty
+    Gather f &&& Gather g = Gather (f <> g)
 
 instance Num a => NumCat Gather a where
-  negateC = Gather negateC
-  addC    = Gather addC
-  subC    = Gather subC
-  mulC    = Gather mulC
-  powIC   = Gather powIC
+    negateC = Gather empty
+    addC    = Gather empty
+    subC    = Gather empty
+    mulC    = Gather empty
+    powIC   = Gather empty
 
 instance ConstCat Gather Int where
-    const b = Gather $ Kleisli $ const $ b <$ tell (singleton b)
-
-equation :: Num a => a -> a -> a
-equation x y = x + y - y
-
-test' :: IO ()
-test' = do
-    -- print $ flip getConstArr (return (10, 20))
-    --       $ (ccc (uncurry (equation @Int)) :: ConstArr Expr (Int, Int) Int)
-    print $ runWriter
-          $ flip runKleisli (10, 20)
-          $ runGather
-          $ (ccc (uncurry (equation @Int)) :: Gather (Int, Int) Int)
-  where
-    phi (Neg a)   = - a
-    phi (Add a b) = a + b
-    phi (Sub a b) = a - b
-    phi (Mul a b) = a * b
-{-# NOINLINE test' #-}
+    const = Gather . singleton

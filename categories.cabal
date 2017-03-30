@@ -1,0 +1,27 @@
+name:          categories
+version:       0.1.0.0
+synopsis:      Compiling to categories
+homepage:      http://github.com/jwiegley/categories
+license:       MIT
+license-file:  LICENSE
+author:        John Wiegley
+maintainer:    johnw@newartisans.com
+category:      System
+build-type:    Simple
+cabal-version: >=1.10
+
+executable categories
+  main-is:             Main.hs
+  other-modules:
+    Categorical
+  build-depends:       
+      base >=4.9 && <4.10
+    , profunctors >=5.2 && <5.3
+    , concat
+    , ghc-prim
+    , free
+    , containers
+    , transformers
+    , mtl
+  hs-source-dirs:      src
+  default-language:    Haskell2010

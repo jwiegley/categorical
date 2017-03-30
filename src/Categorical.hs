@@ -9,8 +9,10 @@ module Categorical where
 
 import Prelude hiding (id, (.), curry, uncurry, const)
 
+import Data.Coerce
 import Data.Monoid
 import Data.Set
+import Data.Tuple (swap)
 
 import ConCat.Category
 
@@ -35,17 +37,17 @@ data Cat a b where
     Unknown :: a ~> b
 
     -- CoerceCat
-    Coerce :: a ~> b
+    Coerce :: Coercible a b => a ~> b
 
     -- EqCat
-    Equal    :: a × a ~> BoolOf Cat
-    NotEqual :: a × a ~> BoolOf Cat
+    Equal    :: Eq a => a × a ~> BoolOf Cat
+    NotEqual :: Eq a => a × a ~> BoolOf Cat
 
     -- OrdCat
-    LessThan           :: a × a ~> BoolOf Cat
-    GreaterThan        :: a × a ~> BoolOf Cat
-    LessThanOrEqual    :: a × a ~> BoolOf Cat
-    GreaterThanOrEqaul :: a × a ~> BoolOf Cat
+    LessThan           :: Ord a => a × a ~> BoolOf Cat
+    GreaterThan        :: Ord a => a × a ~> BoolOf Cat
+    LessThanOrEqual    :: Ord a => a × a ~> BoolOf Cat
+    GreaterThanOrEqaul :: Ord a => a × a ~> BoolOf Cat
 
     -- DistribCat
     Distl :: (a × (u + v)) ~> ((a × u) + (a × v))
@@ -81,35 +83,35 @@ data Cat a b where
 
     -- ClosedCat
     Apply   :: (Exp Cat a b × a) ~> b
-    Curry   :: ((a × b) ~> c)     -> (a ~> Exp Cat b c)
+    Curry   :: ((a × b) ~> c) -> (a ~> Exp Cat b c)
     Uncurry :: (a ~> Exp Cat b c) -> ((a × b) ~> c)
 
     -- ENumCat
-    Succ :: a ~> a
-    Pred :: a ~> a
+    Succ :: Enum a => a ~> a
+    Pred :: Enum a => a ~> a
 
     -- NumCat
-    Negate :: a ~> a
-    Add    :: a × a ~> a
-    Sub    :: a × a ~> a
-    Mul    :: a × a ~> a
-    PowI   :: a × Int ~> b
+    Negate :: Num a => a ~> a
+    Add    :: Num a => a × a ~> a
+    Sub    :: Num a => a × a ~> a
+    Mul    :: Num a => a × a ~> a
+    PowI   :: Num a => a × Int ~> a
 
     -- FractionalCat
-    Recip  :: a ~> a
-    Divide :: (a × a) ~> a
+    Recip  :: Fractional a => a ~> a
+    Divide :: Fractional a => (a × a) ~> a
 
     -- RealFracCat
-    Floor   :: a ~> b
-    Ceiling :: a ~> b
+    Floor   :: (RealFrac a, Integral b) => a ~> b
+    Ceiling :: (RealFrac a, Integral b) => a ~> b
 
     -- FloatingCat
-    Exp :: a ~> a
-    Cos :: a ~> a
-    Sin :: a ~> a
+    Exp :: Floating a => a ~> a
+    Cos :: Floating a => a ~> a
+    Sin :: Floating a => a ~> a
 
     -- FromIntegralCat
-    FromIntegral :: a ~> b
+    FromIntegral :: (Integral a, Num b) => a ~> b
 
 instance Show (Cat a b) where
     show = \case
@@ -164,6 +166,62 @@ instance Show (Cat a b) where
         Sin                -> "Sin"
         FromIntegral       -> "FromIntegral"
 
+eval :: a ~> b -> a -> b
+eval = \case
+    Id                 -> id
+    Compose f g        -> eval f . eval g
+    It                 -> const ()
+    Bottom             -> undefined
+    Unknown            -> error "unknown!"
+    Equal              -> uncurry (==)
+    NotEqual           -> uncurry (/=)
+    LessThan           -> uncurry (<)
+    GreaterThan        -> uncurry (>)
+    LessThanOrEqual    -> uncurry (<=)
+    GreaterThanOrEqaul -> uncurry (>=)
+    Distl              -> \(a, p) -> case p of Left x -> Left (a, x)
+                                               Right x -> Right (a, x)
+    Distr              -> \(p, b) -> case p of Left x -> Left (x, b)
+                                               Right x -> Right (x, b)
+    Coerce             -> coerce
+    Not                -> not
+    And                -> uncurry (&&)
+    Or                 -> uncurry (||)
+    Xor                -> uncurry (/=)
+    If                 -> \(x, (y, z)) -> if x then y else z
+    Exl                -> fst
+    Exr                -> snd
+    Dup                -> \x -> (x, x)
+    SwapP              -> swap
+    Cross f g          -> eval f *** eval g
+    Fork f g           -> eval f &&& eval g
+    Inl                -> Left
+    Inr                -> Right
+    Jam                -> either id id
+    SwapS              -> \case Left x -> Right x
+                                Right x -> Left x
+    Across f g         -> eval f +++ eval g
+    Split f g          -> eval f ||| eval g
+    Const b            -> const b
+    Apply              -> uncurry ($)
+    Curry f            -> curry (eval f)
+    Uncurry f          -> uncurry (eval f)
+    Succ               -> succ
+    Pred               -> pred
+    Negate             -> negate
+    Add                -> uncurry (+)
+    Sub                -> uncurry (-)
+    Mul                -> uncurry (*)
+    PowI               -> uncurry (^)
+    Recip              -> recip
+    Divide             -> uncurry (/)
+    Floor              -> floor
+    Ceiling            -> ceiling
+    Exp                -> exp
+    Cos                -> cos
+    Sin                -> sin
+    FromIntegral       -> fromIntegral
+
 instance Category Cat where
     id  = Id
     (.) = Compose
@@ -177,40 +235,40 @@ instance BottomCat Cat a b where
 instance UnknownCat Cat a b where
     unknownC = Unknown
 
-instance EqCat Cat a where
+instance Eq a => EqCat Cat a where
     equal    = Equal
     notEqual = NotEqual
 
-instance OrdCat Cat a where
+instance Ord a => OrdCat Cat a where
     lessThan           = LessThan
     greaterThan        = GreaterThan
     lessThanOrEqual    = LessThanOrEqual
     greaterThanOrEqual = GreaterThanOrEqaul
 
-instance Num a => FractionalCat Cat a where
+instance Fractional a => FractionalCat Cat a where
     recipC = Recip
     divideC = Divide
 
-instance RealFracCat Cat a b where
+instance (RealFrac a, Integral b) => RealFracCat Cat a b where
     floorC = Floor
     ceilingC = Ceiling
 
-instance FloatingCat Cat a where
+instance Floating a => FloatingCat Cat a where
     expC = Exp
     cosC = Cos
     sinC = Sin
 
-instance FromIntegralCat Cat a b where
+instance (Integral a, Num b) => FromIntegralCat Cat a b where
     fromIntegralC = FromIntegral
 
 instance DistribCat Cat where
     distl = Distl
     distr = Distr
 
-instance CoerceCat Cat a b where
+instance Coercible a b => CoerceCat Cat a b where
     coerceC = Coerce
 
-instance (Num a, Show a) => EnumCat Cat a where
+instance (Enum a, Show a) => EnumCat Cat a where
     succC = Succ
     predC = Pred
 
@@ -247,7 +305,7 @@ instance ClosedCat Cat where
     curry = Curry
     uncurry = Uncurry
 
-instance NumCat Cat a where
+instance Num a => NumCat Cat a where
     negateC = Negate
     addC    = Add
     subC    = Sub

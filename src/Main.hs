@@ -13,6 +13,7 @@ import ConCat.Syntactic (render)
 import Control.Arrow (Kleisli(..))
 import Control.Monad
 import Data.Proxy
+import GHC.Types
 -- import Control.Monad.Free
 
 default (Int)
@@ -35,7 +36,7 @@ main = do
     print (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int)
     print (eval (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int) (10, 20))
 
-    join $ runKleisli (ccc (tele @IO) :: Kleisli IO () (IO ())) ()
+    join $ runKleisli (ccc (ccc (tele @IO)) :: Kleisli IO () (IO ())) ()
 
     -- let expr = constarr @Expr (ccc (uncurry (equation @Int))) (10, 20)
     -- print expr

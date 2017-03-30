@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,10 +18,9 @@ import Prelude hiding (id, (.), curry, uncurry, const)
 import Control.Arrow (Kleisli(..))
 import Data.Coerce
 import Data.Monoid
-import Data.Set
 import Data.Proxy
+import Data.Set
 import Data.Tuple (swap)
-import GHC.Prim
 
 import ConCat.Category
 
@@ -363,7 +363,3 @@ instance Teletype IO Char where
 instance TeletypeCat (Kleisli IO) Char where
     getC = Kleisli (const (get (Proxy :: Proxy Char)))
     putC = Kleisli put
-
-instance CoerceCat (Kleisli IO)
-         (State# RealWorld -> (# State# RealWorld, () #)) (IO ()) where
-  coerceC = Kleisli unsafeCoerce#

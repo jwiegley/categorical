@@ -1,18 +1,26 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
 module Categorical where
 
 import Prelude hiding (id, (.), curry, uncurry, const)
 
+import Control.Arrow (Kleisli(..))
 import Data.Coerce
 import Data.Monoid
 import Data.Set
+import Data.Proxy
 import Data.Tuple (swap)
+import GHC.Prim
 
 import ConCat.Category
 
@@ -337,3 +345,25 @@ instance Num a => NumCat Gather a where
 
 instance ConstCat Gather Int where
     const = Gather . singleton
+
+{------------------------------------------------------------------------}
+
+class Ok k a => TeletypeCat k a where
+    getC :: () `k` a
+    putC :: a `k` ()
+
+class Teletype m a where
+    get :: Proxy a -> m a
+    put :: a -> m ()
+
+instance Teletype IO Char where
+    get _ = getChar
+    put = putChar
+
+instance TeletypeCat (Kleisli IO) Char where
+    getC = Kleisli (const (get (Proxy :: Proxy Char)))
+    putC = Kleisli put
+
+instance CoerceCat (Kleisli IO)
+         (State# RealWorld -> (# State# RealWorld, () #)) (IO ()) where
+  coerceC = Kleisli unsafeCoerce#

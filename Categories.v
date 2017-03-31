@@ -1,6 +1,8 @@
 Require Export Coq.Unicode.Utf8.
 Require Export Coq.Program.Tactics.
 Require Export Coq.ZArith.ZArith.
+Require Export Hask.Control.Monad.
+Require Export Hask.Control.Monad.Free.
 
 Generalizable All Variables.
 
@@ -46,9 +48,9 @@ Program Instance Coq_Terminal : Terminal arrow := {
 
 Class Closed (k : Type -> Type -> Type) := {
   closed_cartesian :> Cartesian k;
-  apply : forall {A B}, k ((A -> B) * A) B;
-  curry : forall {A B C}, k (A * B) C -> k A (B -> C);
-  uncurry : forall {A B C}, k A (B -> C) -> k (A * B) C;
+  apply : forall {A B}, k ((k A B) * A) B;
+  curry : forall {A B C}, k (A * B) C -> k A (k B C);
+  uncurry : forall {A B C}, k A (k B C) -> k (A * B) C;
 
   apply_curry_law : forall {A B} {f : k (A * A) B},
     apply ∘ (curry f △ id) = f ∘ (id △ id)
@@ -240,5 +242,131 @@ Print sqr_cat'.
 Compute unC (sqr_cat' Const _ Const_NumCat).
 (*
      = "mulC ∘ id △ id"
+     : string
+*)
+
+Inductive TeletypeF a b r :=
+  | Get : (a -> r) -> TeletypeF a b r
+  | GetMany : ((forall s : Type, s -> (a -> s -> s) -> s) -> r) -> TeletypeF a b r
+  | Put : b -> r -> TeletypeF a b r.
+
+Arguments Get {a b r} k.
+Arguments GetMany {a b r} k.
+Arguments Put {a b r} x z.
+
+Program Instance TeletypeF_Functor {a b} : Functor (@TeletypeF a b) := {
+  fmap := fun _ _ f x => match x with
+    | Get k     => Get (f \o k)
+    | GetMany k => GetMany (f \o k)
+    | Put b r   => Put b (f r)
+    end
+}.
+
+Section Kleisli.
+
+Context `{Monad m}.
+
+Definition kleisli (A B : Type) := A -> m B.
+
+Program Instance Kleisli_Category : Category kleisli := {
+  id := fun _ x => pure x;
+  compose := fun _ _ _ g f => g <=< f
+}.
+
+Program Instance Kleisli_Cartesian : Cartesian kleisli := {
+  fork := fun _ _ _ f g x => liftA2 (fun x y => (x, y)) (f x) (g x);
+  exl  := fun _ _ p => pure (fst p);
+  exr  := fun _ _ p => pure (snd p)
+}.
+
+Program Instance Kleisli_Terminal : Terminal kleisli := {
+  it := fun _ a => pure tt
+}.
+
+Program Instance Kleisli_Closed : Closed kleisli := {
+  apply := fun _ _ p => fst p (snd p);
+  curry := fun _ _ _ f x => _;
+  uncurry := fun _ _ _ f p => f (fst p) >>= fun k => k (snd p)
+}.
+Obligation 1.
+  unfold kleisli in *.
+  eapply fmap; intros.
+    exact (f (x, X0)).
+  instantiate (1 := unit).
+  exact (pure tt).
+Defined.
+Obligation 2.
+  unfold Kleisli_Closed_obligation_1.
+Admitted.
+
+Program Instance Kleisli_ConstCat (b : Type) : ConstCat kleisli b := {
+  unitArrow := fun b _ => pure b
+}.
+
+Program Instance Kleisli_BoolCat : BoolCat kleisli := {
+  notC := fun b => pure (negb b);
+  andC := fun p => pure (andb (fst p) (snd p));
+  orC  := fun p => pure (orb (fst p) (snd p))
+}.
+
+Program Instance Kleisli_NumCat : NumCat kleisli Z := {
+  negateC := fun x => pure (0 - x)%Z;
+  addC := fun p => pure (Zplus (fst p) (snd p));
+  mulC := fun p => pure (Zmult (fst p) (snd p))
+}.
+
+End Kleisli.
+
+Definition Teletype a b := Free (TeletypeF a b).
+
+Definition get {a b} : Teletype a b a := liftF (Get id).
+Definition put {a b} (x : b) : Teletype a b unit := liftF (Put x tt).
+
+Definition foo : Teletype nat nat unit :=
+  x <- get;
+  put x;;
+  put x.
+
+Class TeletypeCat (k : Type -> Type -> Type) (a : Type) := {
+  getC : k unit a;
+  putC : k a unit
+}.
+
+Program Instance Kleisli_TeletypeCat : TeletypeCat (@kleisli (Teletype nat nat)) nat := {
+  getC := fun _ => get;
+  putC := put
+}.
+
+Theorem foo_cat  :
+  { f : forall (k : Type -> Type -> Type) `{Closed k} `{TeletypeCat k nat}, k unit unit
+  | f (@kleisli (Teletype nat nat)) Kleisli_Closed Kleisli_TeletypeCat = fun _ => foo }.
+Proof.
+  eexists.
+  unfold foo.
+  symmetry.
+  instantiate (1 := fun _ _ _ => _).
+  instantiate (1 := (exl ∘ (putC △ putC)) ∘ getC).
+  compute.
+  extensionality u; destruct u.
+  f_equal.
+  extensionality x.
+  f_equal.
+  extensionality u; destruct u.
+  f_equal.
+  extensionality u; destruct u.
+  reflexivity.
+Defined.
+
+Definition foo_cat' := Eval compute in proj1_sig foo_cat.
+Print foo_cat'.
+
+Program Instance Const_TeletypeCat {a} : TeletypeCat Const a := {
+  getC := mkC "getC";
+  putC := mkC "putC"
+}.
+
+Compute unC (foo_cat' Const _ Const_TeletypeCat).
+(*
+     = "exl ∘ putC △ putC ∘ getC"
      : string
 *)

@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -7,25 +6,20 @@
 
 module Main where
 
-import Categorical
 import ConCat.AltCat (ccc)
 import ConCat.Syntactic (render)
 import Control.Arrow (Kleisli(..))
-import Control.Monad
-import Data.Proxy
-import GHC.Types
--- import Control.Monad.Free
+import Control.Monad.Free
 
-default (Int)
+import Categorical
 
 equation :: Num a => a -> a -> a
 equation x y = x - 3 + 7 * y
 
-tele :: (Monad m, Teletype m Char) => () -> m ()
-tele _ = do
-    x <- get (Proxy :: Proxy Char)
-    put x
-    put x
+type Teletype = Free TeletypeF
+
+tele :: Kleisli Teletype () ()
+tele = Kleisli $ \() -> Free $ Get $ \c -> Free $ Put c (Free $ Put c (Pure ()))
 
 main :: IO ()
 main = do
@@ -36,15 +30,6 @@ main = do
     print (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int)
     print (eval (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int) (10, 20))
 
-    join $ runKleisli (ccc (ccc (tele @IO)) :: Kleisli IO () (IO ())) ()
-
-    -- let expr = constarr @Expr (ccc (uncurry (equation @Int))) (10, 20)
-    -- print expr
-    -- print $ iter phi expr
+    print $ (ccc tele :: Cat () (Teletype ()))
 
     putStrLn "Goodbye, Haskell!"
-  -- where
-  --   phi (Neg a)   = - a
-  --   phi (Add a b) = a + b
-  --   phi (Sub a b) = a - b
-  --   phi (Mul a b) = a * b

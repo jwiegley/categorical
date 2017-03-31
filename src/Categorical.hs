@@ -348,18 +348,24 @@ instance ConstCat Gather Int where
 
 {------------------------------------------------------------------------}
 
-class Ok k a => TeletypeCat k a where
-    getC :: () `k` a
-    putC :: a `k` ()
+data TeletypeF r = Get (Char -> r) | Put Char r
 
-class Teletype m a where
-    get :: Proxy a -> m a
-    put :: a -> m ()
+instance Show r => Show (TeletypeF r) where
+    show (Get k) = "Get " ++ show (k '?')
+    show (Put c r) = "Put " ++ show c ++ " " ++ show r
 
-instance Teletype IO Char where
-    get _ = getChar
-    put = putChar
+-- class Ok k a => TeletypeCat k a where
+--     getC :: () `k` a
+--     putC :: a `k` ()
 
-instance TeletypeCat (Kleisli IO) Char where
-    getC = Kleisli (const (get (Proxy :: Proxy Char)))
-    putC = Kleisli put
+-- class Teletype a where
+--     get :: Proxy a -> a
+--     put :: a -> ()
+
+-- instance TeletypeCat (->) Char where
+--     getC = error "getC doesn't work in plain Haskell"
+--     putC = error "putC doesn't work in plain Haskell"
+
+-- instance TeletypeCat (Kleisli IO) Char where
+--     getC = Kleisli (\() -> getChar)
+--     putC = Kleisli putChar

@@ -30,6 +30,6 @@ main = do
     print (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int)
     print (eval (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int) (10, 20))
 
-    print $ (ccc tele :: Cat () (Teletype ()))
+    -- print $ (ccc tele :: Cat () (Teletype ()))
 
     putStrLn "Goodbye, Haskell!"

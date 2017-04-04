@@ -1,8 +1,11 @@
-Require Export Coq.Unicode.Utf8.
-Require Export Coq.Program.Tactics.
-Require Export Coq.ZArith.ZArith.
-Require Export Hask.Control.Monad.
-Require Export Hask.Control.Monad.Free.
+Require Import
+  Fiat.ADT
+  Fiat.ADTNotation
+  Coq.Unicode.Utf8
+  Coq.Program.Tactics
+  Coq.ZArith.ZArith
+  Hask.Control.Monad
+  Hask.Control.Monad.Free.
 
 Generalizable All Variables.
 
@@ -61,6 +64,9 @@ Program Instance Coq_Closed : Closed arrow := {
   curry := fun _ _ _ f a b => f (a, b);
   uncurry := fun _ _ _ f p => f (fst p) (snd p)
 }.
+
+Definition CCC `(lam : a -> b) : forall `{Closed k}, Comp (k a b) :=
+  True.
 
 Hint Rewrite (@apply_curry_law arrow Coq_Closed) : ccc.
 

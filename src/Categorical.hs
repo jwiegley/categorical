@@ -23,6 +23,7 @@ import Data.Set
 import Data.Tuple (swap)
 
 import ConCat.Category
+import ConCat.Rep
 
 {------------------------------------------------------------------------}
 
@@ -46,6 +47,10 @@ data Cat a b where
 
     -- CoerceCat
     Coerce :: Coercible a b => a ~> b
+
+    -- RepCat
+    Repr :: a ~> r
+    Abst :: r ~> a
 
     -- EqCat
     Equal    :: Eq a => a × a ~> BoolOf Cat
@@ -137,6 +142,8 @@ instance Show (Cat a b) where
         Distl              -> "Distl"
         Distr              -> "Distr"
         Coerce             -> "Coerce"
+        Repr               -> "Repr"
+        Abst               -> "Abst"
         Not                -> "Not"
         And                -> "And"
         Or                 -> "Or"
@@ -192,6 +199,8 @@ eval = \case
     Distr              -> \(p, b) -> case p of Left x -> Left (x, b)
                                                Right x -> Right (x, b)
     Coerce             -> coerce
+    Repr               -> error "repr"
+    Abst               -> error "abst"
     Not                -> not
     And                -> uncurry (&&)
     Or                 -> uncurry (||)
@@ -275,6 +284,10 @@ instance DistribCat Cat where
 
 instance Coercible a b => CoerceCat Cat a b where
     coerceC = Coerce
+
+instance (r ~ Rep a) => RepCat Cat a r where
+    reprC = Repr
+    abstC = Abst
 
 instance (Enum a, Show a) => EnumCat Cat a where
     succC = Succ

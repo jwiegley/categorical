@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -11,45 +12,96 @@ module Conal where
 import Categorical
 import ConCat.AltCat (ccc)
 import ConCat.Category
+import ConCat.Rep
 import Prelude hiding ((.), id, curry, uncurry)
 
-data PreambleCorrelatorInput = PreambleCorrelatorInput
-data PostambleCorrelatorInput = PostambleCorrelatorInput
-data SampleBufferInput = SampleBufferInput
+data PreambleCorrelatorInput = PreambleCorrelatorInput deriving Show
+data PostambleCorrelatorInput = PostambleCorrelatorInput deriving Show
+data SampleBufferInput = SampleBufferInput deriving Show
 
-data DividerOutput = DividerOutput
-data SampleBufferOutput = SampleBufferOutput
+instance HasRep PreambleCorrelatorInput where
+    type Rep PreambleCorrelatorInput = ()
+    repr _ = ()
+    abst () = PreambleCorrelatorInput
+
+instance HasRep PostambleCorrelatorInput where
+    type Rep PostambleCorrelatorInput = ()
+    repr _ = ()
+    abst () = PostambleCorrelatorInput
+
+instance HasRep SampleBufferInput where
+    type Rep SampleBufferInput = ()
+    repr _ = ()
+    abst () = SampleBufferInput
+
+data DividerOutput = DividerOutput deriving Show
+data SampleBufferOutput = SampleBufferOutput deriving Show
+
+instance HasRep DividerOutput where
+    type Rep DividerOutput = ()
+    repr _ = ()
+    abst () = DividerOutput
+
+instance HasRep SampleBufferOutput where
+    type Rep SampleBufferOutput = ()
+    repr _ = ()
+    abst () = SampleBufferOutput
 
 lanTiming :: PreambleCorrelatorInput
           -> PostambleCorrelatorInput
           -> SampleBufferInput
           -> (DividerOutput, SampleBufferOutput)
-lanTiming = error "lanTiming opaque"
+lanTiming _ _ _ = (DividerOutput, SampleBufferOutput)
 
-data NCOMultiplyOutput = NCOMultiplyOutput
+data NCOMultiplyOutput = NCOMultiplyOutput deriving Show
+
+instance HasRep NCOMultiplyOutput where
+    type Rep NCOMultiplyOutput = ()
+    repr _ = ()
+    abst () = NCOMultiplyOutput
 
 freqAdjust :: DividerOutput -> SampleBufferOutput -> NCOMultiplyOutput
-freqAdjust = error "freqAdjust opaque"
+freqAdjust _ _ = NCOMultiplyOutput
 
-data GRSampleBufferOutput = GRSampleBufferOutput
+data GRSampleBufferOutput = GRSampleBufferOutput deriving Show
+
+instance HasRep GRSampleBufferOutput where
+    type Rep GRSampleBufferOutput = ()
+    repr _ = ()
+    abst () = GRSampleBufferOutput
 
 guardRemoval :: NCOMultiplyOutput -> GRSampleBufferOutput
-guardRemoval = error "guardRemoval opaque"
+guardRemoval _ = GRSampleBufferOutput
 
-data FFTOutput = FFTOutput
+data FFTOutput = FFTOutput deriving Show
+
+instance HasRep FFTOutput where
+    type Rep FFTOutput = ()
+    repr _ = ()
+    abst () = FFTOutput
 
 fft :: GRSampleBufferOutput -> FFTOutput
-fft = error "fft opaque"
+fft _ = FFTOutput
 
-data MultiplerOutput = MultiplerOutput
+data MultiplerOutput = MultiplerOutput deriving Show
+
+instance HasRep MultiplerOutput where
+    type Rep MultiplerOutput = ()
+    repr _ = ()
+    abst () = MultiplerOutput
 
 equalizer :: FFTOutput -> MultiplerOutput
-equalizer = error "equalizer opaque"
+equalizer _ = MultiplerOutput
 
-data LanSlicerOutput = LanSlicerOutput
+data LanSlicerOutput = LanSlicerOutput deriving Show
+
+instance HasRep LanSlicerOutput where
+    type Rep LanSlicerOutput = ()
+    repr _ = ()
+    abst () = LanSlicerOutput
 
 lanSlicer :: MultiplerOutput -> LanSlicerOutput
-lanSlicer = error "lanSlicer opaque"
+lanSlicer _ = LanSlicerOutput
 
 component :: PreambleCorrelatorInput
           -> PostambleCorrelatorInput

@@ -4,6 +4,10 @@ Require Import
   Coq.Unicode.Utf8
   Coq.Program.Tactics
   Coq.ZArith.ZArith
+  Coq.Classes.Morphisms
+  Coq.Setoids.Setoid
+  Coq.Init.Datatypes
+  Coq.Relations.Relation_Definitions
   Hask.Control.Monad
   Hask.Control.Monad.Free.
 
@@ -11,63 +15,290 @@ Generalizable All Variables.
 
 Close Scope nat_scope.
 
-Class Category (k : Type -> Type -> Type) := {
-  id : forall {A}, k A A;
-  compose : forall {A B C}, k B C -> k A B -> k A C
+Reserved Notation "f ∙ g" (at level 50).
+Reserved Notation "f ~> g" (at level 50).
+
+Class Category (ob : Type) := {
+  uhom := Type : Type;
+  hom  : ob → ob → uhom where "a ~> b" := (hom a b);
+
+  id : ∀ {A}, A ~> A;
+  compose : ∀ {A B C}, B ~> C -> A ~> B -> A ~> C
+    where "f ∙ g" := (compose f g);
+
+  id_left  : ∀ {X Y} {f : X ~> Y}, id ∙ f = f;
+  id_right : ∀ {X Y} {f : X ~> Y}, f ∙ id = f;
+
+  comp_assoc : ∀ {X Y Z W} {f : Z ~> W} {g : Y ~> Z} {h : X ~> Y},
+    f ∙ (g ∙ h) = (f ∙ g) ∙ h
 }.
 
-Infix "∘" := compose (at level 40).
+Infix "~>" := hom (at level 50).
+Infix "~{ C }~>" := (@hom C _) (at level 50).
+Infix "∙" := compose (at level 50).
 
 Definition arrow (A B : Type) := A -> B.
 
-Program Instance Coq_Category : Category arrow := {
+Program Instance Coq_Category : Category Type := {
+  hom := arrow;
   id := fun _ x => x;
   compose := fun _ _ _ g f x => g (f x)
 }.
 
-Class Cartesian (k : Type -> Type -> Type) := {
-  cartesian_category :> Category k;
-  fork : forall {A C D}, k A C -> k A D -> k A (C * D);
-  exl  : forall {A B}, k (A * B) A;
-  exr  : forall {A B}, k (A * B) B
+Class Cartesian (ob : Type) := {
+  cartesian_category :> Category ob;
+
+  Prod : ob -> ob -> ob;
+
+  fork : ∀ {X Z W}, X ~> Z -> X ~> W -> X ~> Prod Z W;
+  exl  : ∀ {X Y}, Prod X Y ~> X;
+  exr  : ∀ {X Y}, Prod X Y ~> Y;
+
+  univ_products : ∀ {X Y Z} {f : X ~> Y} {g : X ~> Z} {h : X ~> Prod Y Z},
+    h = fork f g <-> exl ∙ h = f ∧ exr ∙ h = g
 }.
 
 Infix "△" := fork (at level 40).
 
-Program Instance Coq_Cartesian : Cartesian arrow := {
+Corollary exl_fork `{Cartesian C} : ∀ {X Z W} (f : X ~> Z) (g : X ~> W),
+  exl ∙ f △ g = f.
+Proof.
+  intros.
+  apply (proj1 (@univ_products C H _ _ _ f g (f △ g)) eq_refl).
+Qed.
+
+Corollary exr_fork `{Cartesian C} : ∀ {X Z W} (f : X ~> Z) (g : X ~> W),
+  exr ∙ f △ g = g.
+Proof.
+  intros.
+  apply (proj1 (@univ_products C H _ _ _ f g (f △ g)) eq_refl).
+Qed.
+
+Corollary fork_exl_exr `{Cartesian C} : ∀ {X Y},
+  exl △ exr = @id C _ (Prod X Y).
+Proof.
+  intros.
+  symmetry.
+  apply (proj2 (@univ_products C H (Prod X Y) X Y exl exr id)).
+  rewrite !id_right.
+  auto.
+Qed.
+
+Corollary fork_compose `{Cartesian C} :
+  ∀ {X Y Z V W} (f : Prod Y Z ~> V) (h : Prod Y Z ~> W) (g : X ~> Prod Y Z),
+    (f ∙ g) △ (h ∙ g) = f △ h ∙ g.
+Proof.
+  intros.
+  symmetry.
+  apply (@univ_products C H _ _ _ (f ∙ g) (h ∙ g) (f △ h ∙ g)).
+  rewrite !comp_assoc.
+  rewrite exl_fork.
+  rewrite exr_fork.
+  auto.
+Qed.
+
+Program Instance Coq_Cartesian : Cartesian Type := {
+  cartesian_category := Coq_Category;
+  Prod := prod;
   fork := fun _ _ _ f g x => (f x, g x);
   exl  := fun _ _ p => fst p;
   exr  := fun _ _ p => snd p
 }.
+Obligation 1.
+  split; intros; subst.
+    split; extensionality x; reflexivity.
+  destruct H.
+  subst; simpl.
+  extensionality x.
+  rewrite <- surjective_pairing.
+  reflexivity.
+Qed.
 
-Class Terminal (k : Type -> Type -> Type) := {
-  terminal_category :> Category k;
-  it : forall {A}, k A unit
+Class Terminal (ob : Type) := {
+  terminal_category :> Category ob;
+  it : ∀ {A}, A ~> (unit : Type)
 }.
 
-Program Instance Coq_Terminal : Terminal arrow := {
+Program Instance Coq_Terminal : Terminal Type := {
   it := fun _ a => tt
 }.
 
-Class Closed (k : Type -> Type -> Type) := {
-  closed_cartesian :> Cartesian k;
-  apply : forall {A B}, k ((k A B) * A) B;
-  curry : forall {A B C}, k (A * B) C -> k A (k B C);
-  uncurry : forall {A B C}, k A (k B C) -> k (A * B) C;
+Class Closed (ob : Type) := {
+  closed_cartesian :> Cartesian ob;
 
-  apply_curry_law : forall {A B} {f : k (A * A) B},
-    apply ∘ (curry f △ id) = f ∘ (id △ id)
+  Exp : ob -> ob -> ob;   (* internal homs *)
+
+  apply : ∀ {X Y}, Prod (Exp X Y) X ~> Y;
+  curry : ∀ {X Y Z}, Prod X Y ~> Z -> X ~> Exp Y Z;
+  uncurry : ∀ {X Y Z}, X ~> Exp Y Z -> Prod X Y ~> Z;
+
+  curry_uncurry : ∀ {X Y Z} (f : X ~> Exp Y Z), curry (uncurry f) = f;
+  uncurry_curry : ∀ {X Y Z} (f : Prod X Y ~> Z), uncurry (curry f) = f;
+
+  curry_apply : ∀ {X Y}, curry apply = @id _ _ (Exp X Y);
+
+  univ_exponentials : ∀ {X Y Z} (f : Prod X Y ~> Z),
+    apply ∙ (curry f ∙ exl) △ exr = f
 }.
 
-Program Instance Coq_Closed : Closed arrow := {
+Theorem apply_curry `{Closed C} :
+  ∀ {X Y Z W} (f : Prod Y Z ~> W) (g : X ~> Y) (h : X ~> Z),
+    apply ∙ ((curry f ∙ g) △ h) = f ∙ g △ h.
+Proof.
+  intros.
+  pose proof (@univ_exponentials C H _ _ _ f).
+  rewrite <- H0 at 2; clear H0.
+  rewrite <- comp_assoc.
+  rewrite <- fork_compose.
+  rewrite exr_fork.
+  rewrite <- comp_assoc.
+  rewrite exl_fork.
+  reflexivity.
+Qed.
+
+Program Instance Coq_Closed : Closed Type := {
+  closed_cartesian := Coq_Cartesian;
+  Exp := arrow;
   apply := fun _ _ p => fst p (snd p);
   curry := fun _ _ _ f a b => f (a, b);
   uncurry := fun _ _ _ f p => f (fst p) (snd p)
 }.
+Obligation 2.
+  extensionality p.
+  rewrite <- surjective_pairing.
+  reflexivity.
+Qed.
+Obligation 4.
+  extensionality x.
+  rewrite <- surjective_pairing.
+  reflexivity.
+Qed.
 
-Definition CCC `(lam : a -> b) : forall `{Closed k}, Comp (k a b) :=
-  True.
+Class CategoryFunctor `(_ : Category C) `(_ : Category D) := {
+  fobj : C -> D;
+  fmap : ∀ {X Y : C}, X ~> Y → fobj X ~> fobj Y;
 
+  fmap_id : ∀ {X : C}, fmap (@id C _ X) = id;
+  fmap_comp : ∀ {X Y Z} (f : Y ~> Z) (g : X ~> Y),
+    fmap (f ∙ g) = fmap f ∙ fmap g
+}.
+
+Notation "C ⟶ D" := (CategoryFunctor C D) (at level 90, right associativity).
+
+Notation "fmap[ M ]" := (@fmap _ _ M _ _ _ _) (at level 9).
+
+Import EqNotations.
+
+Class CartesianFunctor `(_ : Cartesian C) `(_ : Cartesian D) := {
+  category_functor :> @CategoryFunctor C _ D _;
+
+  prod_out : ∀ {X Y : C}, fobj (Prod X Y) ~> Prod (fobj X) (fobj Y);
+  prod_in  : ∀ {X Y : C}, Prod (fobj X) (fobj Y) ~> fobj (Prod X Y);
+
+  prod_out_in : ∀ {X Y : C}, @prod_out X Y ∙ prod_in = id;
+  prod_in_out : ∀ {X Y : C}, @prod_in X Y ∙ prod_out = id;
+
+  fmap_exl : ∀ {X Y : C}, fmap (@exl C _ X Y) = exl ∙ prod_out;
+  fmap_exr : ∀ {X Y : C}, fmap (@exr C _ X Y) = exr ∙ prod_out;
+  fmap_fork : ∀ {X Y Z : C} (f : X ~> Y) (g : X ~> Z),
+    fmap (f △ g) = prod_in ∙ fmap f △ fmap g
+}.
+
+Class ClosedFunctor `(_ : Closed C) `(_ : Closed D) := {
+  cartesian_functor :> @CartesianFunctor C  _ D _;
+
+  exp_out : ∀ {X Y : C}, fobj (Exp X Y) ~> Exp (fobj X) (fobj Y);
+  exp_in  : ∀ {X Y : C}, Exp (fobj X) (fobj Y) ~> fobj (Exp X Y);
+
+  exp_out_in : ∀ {X Y : C}, @exp_out X Y ∙ exp_in = id;
+  exp_in_out : ∀ {X Y : C}, @exp_in X Y ∙ exp_out = id;
+
+  fmap_apply : ∀ {X Y : C},
+    fmap (@apply C _ X Y) = uncurry (curry apply ∙ exp_out) ∙ prod_out;
+  fmap_curry : ∀ {X Y Z : C} {f : Prod X Y ~> Z},
+    fmap (@curry C _ X Y Z f) = exp_in ∙ curry (fmap f ∙ prod_in);
+  fmap_uncurry : ∀ {X Y Z : C} (f : X ~> Exp Y Z),
+    fmap (@uncurry C _ X Y Z f) = uncurry (exp_out ∙ fmap f) ∙ prod_out
+}.
+
+Theorem exp_out_inj `{ClosedFunctor C D} :
+  ∀ {X Y Z : C} (f g : fobj X ~> fobj (Exp Y Z)),
+    exp_out ∙ f = exp_out ∙ g <-> f = g.
+Proof.
+  split; intros.
+    rewrite <- id_left.
+    rewrite <- exp_in_out.
+    rewrite <- comp_assoc.
+    rewrite H2.
+    rewrite comp_assoc.
+    rewrite exp_in_out.
+    rewrite id_left.
+    reflexivity.
+  subst.
+  reflexivity.
+Qed.
+
+Section CCC.
+
+Variable k : Type.
+Context `{Closed k}.
+Context `{F : @ClosedFunctor Type _ k _}.
+
+Import EqNotations.
+
+Definition CCC_rel `(lam : a -> b) (ccc : fobj a ~> fobj b) : Prop :=
+  fmap (H:=cartesian_category
+             (Cartesian:=closed_cartesian
+                           (Closed:=Coq_Closed))) lam = ccc.
+
+Infix "==>" := CCC_rel.
+
+Theorem CCC_id : ∀ (a : Type), (λ x : a, x) ==> id.
+Proof.
+  unfold CCC_rel; intros.
+  rewrite <- fmap_id.
+  reflexivity.
+Qed.
+
+Theorem CCC_apply :
+  ∀ (a b c : Type)
+    (U : a -> b -> c) (U' : fobj a ~> Exp (fobj b) (fobj c))
+    (V : a -> b) (V' : fobj a ~> fobj b),
+  U ==> exp_in ∙ U' ->
+  V ==> V' ->
+    (λ x, U x (V x)) ==> apply ∙ (U' △ V').
+Proof.
+  unfold CCC_rel; intros; subst.
+  replace (λ x, U x (V x))
+     with (λ x, @apply Type _ b c (U x, V x)) by auto.
+  replace (λ x, @apply Type _ b c (U x, V x))
+     with (λ x, @apply Type _ b c ((U △ V) x)) by auto.
+  replace (λ x, @apply Type _ b c ((U △ V) x))
+     with (@apply Type _ b c ∙ (U △ V)) by auto.
+  rewrite fmap_comp.
+  rewrite fmap_apply.
+  rewrite fmap_fork.
+  rewrite comp_assoc.
+  rewrite <- (@comp_assoc _ _ _ _ _ _ _ prod_out).
+  rewrite prod_out_in.
+  rewrite id_right.
+  pose proof (proj2 (exp_out_inj (fmap[ k] U) (exp_in ∙ U'))).
+  apply H1 in H0.
+  rewrite comp_assoc in H0.
+  rewrite exp_out_in in H0.
+  rewrite id_left in H0.
+  subst.
+  clear H1.
+  rewrite curry_apply.
+  rewrite id_left.
+  rewrite <- apply_curry.
+  rewrite curry_uncurry.
+  reflexivity.
+Qed.
+
+End CCC.
+
+(*
 Hint Rewrite (@apply_curry_law arrow Coq_Closed) : ccc.
 
 Class ConstCat (k : Type -> Type -> Type) (b : Type) := {
@@ -172,7 +403,7 @@ Lemma abstract_compose A B C f g :
 Admitted.
 
 Theorem sqr_cat  :
-  { f : forall (k : Type -> Type -> Type) `{Closed k} `{NumCat k Z}, k Z Z
+  { f : ∀ (k : Type -> Type -> Type) `{Closed k} `{NumCat k Z}, k Z Z
   | f arrow Coq_Closed Coq_NumCat = sqr }.
 Proof.
   ccc.
@@ -253,7 +484,7 @@ Compute unC (sqr_cat' Const _ Const_NumCat).
 
 Inductive TeletypeF a b r :=
   | Get : (a -> r) -> TeletypeF a b r
-  | GetMany : ((forall s : Type, s -> (a -> s -> s) -> s) -> r) -> TeletypeF a b r
+  | GetMany : ((∀ s : Type, s -> (a -> s -> s) -> s) -> r) -> TeletypeF a b r
   | Put : b -> r -> TeletypeF a b r.
 
 Arguments Get {a b r} k.
@@ -344,7 +575,7 @@ Program Instance Kleisli_TeletypeCat : TeletypeCat (@kleisli (Teletype nat nat))
 }.
 
 Theorem foo_cat  :
-  { f : forall (k : Type -> Type -> Type) `{Closed k} `{TeletypeCat k nat}, k unit unit
+  { f : ∀ (k : Type -> Type -> Type) `{Closed k} `{TeletypeCat k nat}, k unit unit
   | f (@kleisli (Teletype nat nat)) Kleisli_Closed Kleisli_TeletypeCat = fun _ => foo }.
 Proof.
   eexists.
@@ -375,4 +606,5 @@ Compute unC (foo_cat' Const _ Const_TeletypeCat).
 (*
      = "exl ∘ putC △ putC ∘ getC"
      : string
+*)
 *)

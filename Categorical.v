@@ -37,6 +37,8 @@ Infix "~>" := hom (at level 50).
 Infix "~{ C }~>" := (@hom C _) (at level 50).
 Infix "∙" := compose (at level 50).
 
+Notation "id[ X  ]" := (@id _ _ X)  (at level 50).
+
 Definition arrow (A B : Type) := A -> B.
 
 Program Instance Coq_Category : Category Type := {
@@ -116,10 +118,12 @@ Qed.
 
 Class Terminal (ob : Type) := {
   terminal_category :> Category ob;
-  it : ∀ {A}, A ~> (unit : Type)
+  Terminus : Type;
+  it : ∀ {A}, A ~> Terminus
 }.
 
 Program Instance Coq_Terminal : Terminal Type := {
+  Terminus := unit : Type;
   it := fun _ a => tt
 }.
 
@@ -141,7 +145,7 @@ Class Closed (ob : Type) := {
     apply ∙ (curry f ∙ exl) △ exr = f
 }.
 
-Theorem apply_curry `{Closed C} :
+Corollary apply_curry `{Closed C} :
   ∀ {X Y Z W} (f : Prod Y Z ~> W) (g : X ~> Y) (h : X ~> Z),
     apply ∙ ((curry f ∙ g) △ h) = f ∙ g △ h.
 Proof.
@@ -187,7 +191,11 @@ Notation "C ⟶ D" := (CategoryFunctor C D) (at level 90, right associativity).
 
 Notation "fmap[ M ]" := (@fmap _ _ M _ _ _ _) (at level 9).
 
-Import EqNotations.
+Class TerminalFunctor `(TC : Terminal C) `(TD : Terminal D) := {
+  term_functor :> @CategoryFunctor C (@terminal_category C TC)
+                                   D (@terminal_category D TD);
+  term_eq : fobj (@Terminus C TC) ~> @Terminus D TD
+}.
 
 Class CartesianFunctor `(_ : Cartesian C) `(_ : Cartesian D) := {
   category_functor :> @CategoryFunctor C _ D _;
@@ -195,14 +203,51 @@ Class CartesianFunctor `(_ : Cartesian C) `(_ : Cartesian D) := {
   prod_out : ∀ {X Y : C}, fobj (Prod X Y) ~> Prod (fobj X) (fobj Y);
   prod_in  : ∀ {X Y : C}, Prod (fobj X) (fobj Y) ~> fobj (Prod X Y);
 
-  prod_out_in : ∀ {X Y : C}, @prod_out X Y ∙ prod_in = id;
-  prod_in_out : ∀ {X Y : C}, @prod_in X Y ∙ prod_out = id;
+  prod_out_in : ∀ {X Y : C}, prod_out ∙ prod_in = @id _ _ (Prod (fobj X) (fobj Y));
+  prod_in_out : ∀ {X Y : C}, prod_in ∙ prod_out = @id _ _ (fobj (Prod X Y));
 
   fmap_exl : ∀ {X Y : C}, fmap (@exl C _ X Y) = exl ∙ prod_out;
   fmap_exr : ∀ {X Y : C}, fmap (@exr C _ X Y) = exr ∙ prod_out;
   fmap_fork : ∀ {X Y Z : C} (f : X ~> Y) (g : X ~> Z),
     fmap (f △ g) = prod_in ∙ fmap f △ fmap g
 }.
+
+Notation "prod_in[ C -> D | X ~> Y  ]" := (@prod_in C _ D _ _ X Y).
+Notation "prod_out[ C -> D | X ~> Y  ]" := (@prod_out C _ D _ _ X Y).
+
+Corollary prod_in_inj `{CartesianFunctor C D} :
+  ∀ {X Y Z : C} (f g : fobj X ~> Prod (fobj X) (fobj Y)),
+    prod_in ∙ f = prod_in ∙ g <-> f = g.
+Proof.
+  split; intros.
+    rewrite <- id_left.
+    rewrite <- prod_out_in.
+    rewrite <- comp_assoc.
+    rewrite H2.
+    rewrite comp_assoc.
+    rewrite prod_out_in.
+    rewrite id_left.
+    reflexivity.
+  subst.
+  reflexivity.
+Qed.
+
+Corollary prod_out_inj `{CartesianFunctor C D} :
+  ∀ {X Y Z : C} (f g : fobj X ~> fobj (Prod Y Z)),
+    prod_out ∙ f = prod_out ∙ g <-> f = g.
+Proof.
+  split; intros.
+    rewrite <- id_left.
+    rewrite <- prod_in_out.
+    rewrite <- comp_assoc.
+    rewrite H2.
+    rewrite comp_assoc.
+    rewrite prod_in_out.
+    rewrite id_left.
+    reflexivity.
+  subst.
+  reflexivity.
+Qed.
 
 Class ClosedFunctor `(_ : Closed C) `(_ : Closed D) := {
   cartesian_functor :> @CartesianFunctor C  _ D _;
@@ -221,7 +266,24 @@ Class ClosedFunctor `(_ : Closed C) `(_ : Closed D) := {
     fmap (@uncurry C _ X Y Z f) = uncurry (exp_out ∙ fmap f) ∙ prod_out
 }.
 
-Theorem exp_out_inj `{ClosedFunctor C D} :
+Corollary exp_in_inj `{ClosedFunctor C D} :
+  ∀ {X Y Z : C} (f g : fobj X ~> Exp (fobj Y) (fobj Z)),
+    exp_in ∙ f = exp_in ∙ g <-> f = g.
+Proof.
+  split; intros.
+    rewrite <- id_left.
+    rewrite <- exp_out_in.
+    rewrite <- comp_assoc.
+    rewrite H2.
+    rewrite comp_assoc.
+    rewrite exp_out_in.
+    rewrite id_left.
+    reflexivity.
+  subst.
+  reflexivity.
+Qed.
+
+Corollary exp_out_inj `{ClosedFunctor C D} :
   ∀ {X Y Z : C} (f g : fobj X ~> fobj (Exp Y Z)),
     exp_out ∙ f = exp_out ∙ g <-> f = g.
 Proof.
@@ -238,6 +300,8 @@ Proof.
   reflexivity.
 Qed.
 
+Module CCC.
+
 Section CCC.
 
 Variable k : Type.
@@ -246,21 +310,21 @@ Context `{F : @ClosedFunctor Type _ k _}.
 
 Import EqNotations.
 
-Definition CCC_rel `(lam : a -> b) (ccc : fobj a ~> fobj b) : Prop :=
+Definition rel `(lam : a -> b) (ccc : fobj a ~> fobj b) : Prop :=
   fmap (H:=cartesian_category
              (Cartesian:=closed_cartesian
                            (Closed:=Coq_Closed))) lam = ccc.
 
-Infix "==>" := CCC_rel.
+Infix "==>" := rel.
 
-Theorem CCC_id : ∀ (a : Type), (λ x : a, x) ==> id.
+Theorem ccc_id : ∀ (a : Type), (λ x : a, x) ==> id.
 Proof.
-  unfold CCC_rel; intros.
+  unfold rel; intros.
   rewrite <- fmap_id.
   reflexivity.
 Qed.
 
-Theorem CCC_apply :
+Theorem ccc_apply :
   ∀ (a b c : Type)
     (U : a -> b -> c) (U' : fobj a ~> Exp (fobj b) (fobj c))
     (V : a -> b) (V' : fobj a ~> fobj b),
@@ -268,7 +332,7 @@ Theorem CCC_apply :
   V ==> V' ->
     (λ x, U x (V x)) ==> apply ∙ (U' △ V').
 Proof.
-  unfold CCC_rel; intros; subst.
+  unfold rel; intros; subst.
   replace (λ x, U x (V x))
      with (λ x, @apply Type _ b c (U x, V x)) by auto.
   replace (λ x, @apply Type _ b c (U x, V x))
@@ -295,6 +359,50 @@ Proof.
   rewrite curry_uncurry.
   reflexivity.
 Qed.
+
+Theorem ccc_curry :
+  ∀ (a b c : Type)
+    (U : a * b -> c) (U' : Prod (fobj a) (fobj b) ~> fobj c),
+    U ==> U' ∙ prod_out ->
+    (λ x, λ y, U (x, y)) ==> exp_in ∙ curry U'.
+Proof.
+  unfold rel; intros; subst.
+  pose proof (@fmap_curry Type _ k _ _ a b c U).
+  simpl in H1.
+  unfold arrow in H1.
+  simpl.
+  rewrite H1; clear H1.
+  pose proof (@exp_in_inj Type _ k _ _ a b c).
+  apply H1; clear H1.
+  simpl in H0.
+  rewrite H0; clear H0.
+  rewrite <- comp_assoc.
+  pose proof (@prod_out_in Type _ k _ _ a b).
+  simpl in H0.
+  rewrite H0.
+  rewrite id_right.
+  reflexivity.
+Qed.
+
+Theorem ccc_const : ∀ (a b : Type) (c : b),
+  (λ x : a, c) ==> fmap (@const b unit c) ∙ @it _ _ a.
+Proof.
+  unfold rel; intros.
+  rewrite <- H0; clear H0.
+  rewrite <- fmap_comp.
+  reflexivity.
+Qed.
+
+Theorem ccc_const' : ∀ (a b : Type) (c : b),
+  const c ==> fmap (@const b unit c) ∙ fmap it.
+Proof.
+  unfold rel; intros.
+  rewrite <- H0; clear H0.
+  rewrite <- fmap_comp.
+  reflexivity.
+Qed.
+
+End CCC.
 
 End CCC.
 

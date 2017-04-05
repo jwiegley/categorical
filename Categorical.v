@@ -228,6 +228,106 @@ Program Instance Coq_Initial : Initial Type := {
   zero := fun _ _ => False_rect _ _
 }.
 
+Class Cocartesian (ob : Type) := {
+  cocartesian_initial :> Initial ob;
+
+  Sum : ob -> ob -> ob;
+
+  join : ∀ {X Z W}, Z ~> X -> W ~> X -> Sum Z W ~> X;
+  inl  : ∀ {X Y}, X ~> Sum X Y;
+  inr  : ∀ {X Y}, Y ~> Sum X Y;
+
+  univ_sums : ∀ {X Y Z} {f : Y ~> X} {g : Z ~> X} {h : Sum Y Z ~> X},
+    h = join f g <-> h ∙ inl = f ∧ h ∙ inr = g
+}.
+
+Infix "▽" := join (at level 40).
+
+Corollary inl_join `{Cocartesian C} : ∀ {X Z W} (f : Z ~> X) (g : W ~> X),
+  f ▽ g ∙ inl = f.
+Proof.
+  intros.
+  apply (proj1 (@univ_sums C H _ _ _ f g (f ▽ g)) eq_refl).
+Qed.
+
+Corollary inr_join `{Cocartesian C} : ∀ {X Z W} (f : Z ~> X) (g : W ~> X),
+  f ▽ g ∙ inr = g.
+Proof.
+  intros.
+  apply (proj1 (@univ_sums C H _ _ _ f g (f ▽ g)) eq_refl).
+Qed.
+
+Corollary join_inl_inr `{Cocartesian C} : ∀ {X Y},
+  inl ▽ inr = @id C _ (Sum X Y).
+Proof.
+  intros.
+  symmetry.
+  apply (proj2 (@univ_sums C H (Sum X Y) X Y inl inr id)).
+  rewrite !id_left.
+  auto.
+Qed.
+
+Corollary join_compose `{Cocartesian C} :
+  ∀ {X Y Z V W} (f : V ~> Sum Y Z) (h : W ~> Sum Y Z) (g : Sum Y Z ~> X),
+    (g ∙ f) ▽ (g ∙ h) = g ∙ f ▽ h.
+Proof.
+  intros.
+  symmetry.
+  apply (@univ_sums C H _ _ _ (g ∙ f) (g ∙ h) (g ∙ f ▽ h)).
+  rewrite <- !comp_assoc.
+  rewrite inl_join.
+  rewrite inr_join.
+  auto.
+Qed.
+
+Program Instance Coq_Cocartesian : Cocartesian Type := {
+  cocartesian_initial := Coq_Initial;
+  Sum := sum;
+  join := fun _ _ _ f g x =>
+            match x with
+            | Datatypes.inl v => f v
+            | Datatypes.inr v => g v
+            end;
+  inl  := fun _ _ p => Datatypes.inl p;
+  inr  := fun _ _ p => Datatypes.inr p
+}.
+Obligation 1.
+  split; intros; subst.
+    split; extensionality x; reflexivity.
+  destruct H.
+  subst; simpl.
+  extensionality x.
+  destruct x; auto.
+Qed.
+
+Class Bicartesian `(_ : Cartesian C) `(_ : Cocartesian C).
+
+Program Instance Coq_Bicartesian : Bicartesian Coq_Cartesian Coq_Cocartesian.
+
+Class Distributive `(_ : Bicartesian C) := {
+  prod_sum_distr : ∀ {X Y Z : C}, Prod X (Sum Y Z) ≅ Sum (Prod X Y) (Prod X Z)
+}.
+
+Program Instance Coq_Distributive : Distributive Coq_Bicartesian.
+Obligation 1.
+  apply Build_isomorphic with
+    (iso_to:=
+       fun p : (X * (Y + Z)) =>
+         match p with
+         | (x, Datatypes.inl y) => Datatypes.inl (x, y)
+         | (x, Datatypes.inr z) => Datatypes.inr (x, z)
+         end)
+    (iso_from:=
+       fun p : ((X * Y) + (X * Z)) =>
+         match p with
+         | Datatypes.inl (x, y) => (x, Datatypes.inl y)
+         | Datatypes.inr (x, z) => (x, Datatypes.inr z)
+         end).
+  constructor;
+  extensionality p;
+  intuition.
+Qed.
+
 Class Constant (ob A : Type) := {
   constant_initial :> Initial ob;
 

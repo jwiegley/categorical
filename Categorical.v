@@ -47,8 +47,34 @@ Program Instance Coq_Category : Category Type := {
   compose := fun _ _ _ g f x => g (f x)
 }.
 
+Record isomorphism `{Category ob}
+       `(iso_to : X ~> Y) `(iso_from: Y ~> X) : Prop := {
+  iso_to_from : iso_to   ∙ iso_from = id;
+  iso_from_to : iso_from ∙ iso_to   = id
+}.
+
+Record isomorphic `{Category ob} (X Y : ob) := {
+  iso_to   : X ~> Y;
+  iso_from : Y ~> X;
+  iso_witness : isomorphism iso_to iso_from
+}.
+
+Infix "≅" := isomorphic (at level 100).
+
+Class Terminal (ob : Type) := {
+  terminal_category :> Category ob;
+  One : ob;
+  one : ∀ {A}, A ~> One
+}.
+
+Program Instance Coq_Terminal : Terminal Type := {
+  terminal_category := Coq_Category;
+  One := unit : Type;
+  one := fun _ a => tt
+}.
+
 Class Cartesian (ob : Type) := {
-  cartesian_category :> Category ob;
+  cartesian_terminal :> Terminal ob;
 
   Prod : ob -> ob -> ob;
 
@@ -100,7 +126,7 @@ Proof.
 Qed.
 
 Program Instance Coq_Cartesian : Cartesian Type := {
-  cartesian_category := Coq_Category;
+  cartesian_terminal := Coq_Terminal;
   Prod := prod;
   fork := fun _ _ _ f g x => (f x, g x);
   exl  := fun _ _ p => fst p;
@@ -116,28 +142,17 @@ Obligation 1.
   reflexivity.
 Qed.
 
-Class Terminal (ob : Type) := {
-  terminal_category :> Category ob;
-  Terminus : Type;
-  it : ∀ {A}, A ~> Terminus
-}.
-
-Program Instance Coq_Terminal : Terminal Type := {
-  Terminus := unit : Type;
-  it := fun _ a => tt
-}.
-
 Class Closed (ob : Type) := {
   closed_cartesian :> Cartesian ob;
 
   Exp : ob -> ob -> ob;   (* internal homs *)
 
   apply : ∀ {X Y}, Prod (Exp X Y) X ~> Y;
+
   curry : ∀ {X Y Z}, Prod X Y ~> Z -> X ~> Exp Y Z;
   uncurry : ∀ {X Y Z}, X ~> Exp Y Z -> Prod X Y ~> Z;
 
-  curry_uncurry : ∀ {X Y Z} (f : X ~> Exp Y Z), curry (uncurry f) = f;
-  uncurry_curry : ∀ {X Y Z} (f : Prod X Y ~> Z), uncurry (curry f) = f;
+  curry_uncurry_iso : ∀ {X Y Z}, isomorphism (@curry X Y Z) uncurry;
 
   curry_apply : ∀ {X Y}, curry apply = @id _ _ (Exp X Y);
 
@@ -160,6 +175,24 @@ Proof.
   reflexivity.
 Qed.
 
+Corollary curry_uncurry `{Closed C} : ∀ {X Y Z} (f : X ~> Exp Y Z),
+  curry (uncurry f) = f.
+Proof.
+  intros.
+  replace (curry (uncurry f)) with ((curry ∙ uncurry) f) by auto.
+  rewrite (iso_to_from (@curry_uncurry_iso _ _ X Y Z)).
+  reflexivity.
+Qed.
+
+Corollary uncurry_curry `{Closed C} : ∀ {X Y Z} (f : Prod X Y ~> Z),
+  uncurry (curry f) = f.
+Proof.
+  intros.
+  replace (uncurry (curry f)) with ((uncurry ∙ curry) f) by auto.
+  rewrite (iso_from_to (@curry_uncurry_iso _ _ X Y Z)).
+  reflexivity.
+Qed.
+
 Program Instance Coq_Closed : Closed Type := {
   closed_cartesian := Coq_Cartesian;
   Exp := arrow;
@@ -167,16 +200,43 @@ Program Instance Coq_Closed : Closed Type := {
   curry := fun _ _ _ f a b => f (a, b);
   uncurry := fun _ _ _ f p => f (fst p) (snd p)
 }.
-Obligation 2.
+Obligation 1.
+  constructor; intros.
+    extensionality p; simpl; auto.
+  extensionality x; simpl.
   extensionality p.
   rewrite <- surjective_pairing.
   reflexivity.
 Qed.
-Obligation 4.
+Obligation 3.
   extensionality x.
   rewrite <- surjective_pairing.
   reflexivity.
 Qed.
+
+Class Initial (ob : Type) := {
+  initial_category :> Category ob;
+  Zero : ob;
+  zero : ∀ {A}, Zero ~> A
+}.
+
+Arguments Initial ob.
+
+Program Instance Coq_Initial : Initial Type := {
+  initial_category := Coq_Category;
+  Zero := False;
+  zero := fun _ _ => False_rect _ _
+}.
+
+Class Constant (ob A : Type) := {
+  constant_initial :> Initial ob;
+
+  intro : A → Zero ~> A
+}.
+
+Program Instance Coq_Constant {A : Type} : Constant Type A := {
+  intro := fun b _ => b
+}.
 
 Class CategoryFunctor `(_ : Category C) `(_ : Category D) := {
   fobj : C -> D;
@@ -189,31 +249,52 @@ Class CategoryFunctor `(_ : Category C) `(_ : Category D) := {
 
 Notation "C ⟶ D" := (CategoryFunctor C D) (at level 90, right associativity).
 
-Notation "fmap[ M ]" := (@fmap _ _ M _ _ _ _) (at level 9).
+(* Notation "fmap[ M ]" := (@fmap _ _ M _ _ _ _) (at level 9). *)
 
-Class TerminalFunctor `(TC : Terminal C) `(TD : Terminal D) := {
-  term_functor :> @CategoryFunctor C (@terminal_category C TC)
-                                   D (@terminal_category D TD);
-  term_eq : fobj (@Terminus C TC) ~> @Terminus D TD
+Class TerminalFunctor `(_ : Terminal C) `(_ : Terminal D) := {
+  terminal_category_functor :> @CategoryFunctor C _ D _;
+
+  map_one : One ~> fobj One;
+
+  fmap_one : ∀ {X : C}, fmap one = map_one ∙ @one _ _ (fobj X)
 }.
 
 Class CartesianFunctor `(_ : Cartesian C) `(_ : Cartesian D) := {
-  category_functor :> @CategoryFunctor C _ D _;
+  terminal_functor :> @TerminalFunctor C _ D _;
 
-  prod_out : ∀ {X Y : C}, fobj (Prod X Y) ~> Prod (fobj X) (fobj Y);
-  prod_in  : ∀ {X Y : C}, Prod (fobj X) (fobj Y) ~> fobj (Prod X Y);
+  fobj_prod_iso : ∀ {X Y : C}, fobj (Prod X Y) ≅ Prod (fobj X) (fobj Y);
 
-  prod_out_in : ∀ {X Y : C}, prod_out ∙ prod_in = @id _ _ (Prod (fobj X) (fobj Y));
-  prod_in_out : ∀ {X Y : C}, prod_in ∙ prod_out = @id _ _ (fobj (Prod X Y));
+  prod_one_right_iso : ∀ {X Y : C}, Prod X One ≅ X;
+  prod_one_left_iso  : ∀ {X Y : C}, Prod One X ≅ X;
 
-  fmap_exl : ∀ {X Y : C}, fmap (@exl C _ X Y) = exl ∙ prod_out;
-  fmap_exr : ∀ {X Y : C}, fmap (@exr C _ X Y) = exr ∙ prod_out;
+  prod_in  := fun X Y => iso_from (@fobj_prod_iso X Y);
+  prod_out := fun X Y => iso_to   (@fobj_prod_iso X Y);
+
+  fmap_exl : ∀ {X Y : C}, fmap (@exl C _ X Y) = exl ∙ prod_out _ _;
+  fmap_exr : ∀ {X Y : C}, fmap (@exr C _ X Y) = exr ∙ prod_out _ _;
   fmap_fork : ∀ {X Y Z : C} (f : X ~> Y) (g : X ~> Z),
-    fmap (f △ g) = prod_in ∙ fmap f △ fmap g
+    fmap (f △ g) = prod_in _ _ ∙ fmap f △ fmap g
 }.
+
+Arguments prod_in {C _ D _ _ _ _} /.
+Arguments prod_out {C _ D _ _ _ _} /.
 
 Notation "prod_in[ C -> D | X ~> Y  ]" := (@prod_in C _ D _ _ X Y).
 Notation "prod_out[ C -> D | X ~> Y  ]" := (@prod_out C _ D _ _ X Y).
+
+Corollary prod_in_out `{CartesianFunctor C D} : forall(X Y : C),
+  prod_in ∙ prod_out = @id _ _ (fobj (Prod X Y)).
+Proof.
+  intros.
+  exact (iso_from_to (iso_witness (@fobj_prod_iso _ _ _ _ _ X Y))).
+Qed.
+
+Corollary prod_out_in `{CartesianFunctor C D} : forall(X Y : C),
+  prod_out ∙ prod_in = @id _ _ (Prod (fobj X) (fobj Y)).
+Proof.
+  intros.
+  exact (iso_to_from (iso_witness (@fobj_prod_iso _ _ _ _ _ X Y))).
+Qed.
 
 Corollary prod_in_inj `{CartesianFunctor C D} :
   ∀ {X Y Z : C} (f g : fobj X ~> Prod (fobj X) (fobj Y)),
@@ -252,19 +333,37 @@ Qed.
 Class ClosedFunctor `(_ : Closed C) `(_ : Closed D) := {
   cartesian_functor :> @CartesianFunctor C  _ D _;
 
-  exp_out : ∀ {X Y : C}, fobj (Exp X Y) ~> Exp (fobj X) (fobj Y);
-  exp_in  : ∀ {X Y : C}, Exp (fobj X) (fobj Y) ~> fobj (Exp X Y);
+  fobj_exp_iso : ∀ {X Y : C}, fobj (Exp X Y) ≅ Exp (fobj X) (fobj Y);
 
-  exp_out_in : ∀ {X Y : C}, @exp_out X Y ∙ exp_in = id;
-  exp_in_out : ∀ {X Y : C}, @exp_in X Y ∙ exp_out = id;
+  exp_one_iso : ∀ {X Y : C}, Exp One X ≅ X;
+
+  exp_in  := fun X Y => iso_from (@fobj_exp_iso X Y);
+  exp_out := fun X Y => iso_to   (@fobj_exp_iso X Y);
 
   fmap_apply : ∀ {X Y : C},
-    fmap (@apply C _ X Y) = uncurry (curry apply ∙ exp_out) ∙ prod_out;
+    fmap (@apply C _ X Y) = uncurry (curry apply ∙ exp_out _ _) ∙ prod_out;
   fmap_curry : ∀ {X Y Z : C} {f : Prod X Y ~> Z},
-    fmap (@curry C _ X Y Z f) = exp_in ∙ curry (fmap f ∙ prod_in);
+    fmap (@curry C _ X Y Z f) = exp_in _ _ ∙ curry (fmap f ∙ prod_in);
   fmap_uncurry : ∀ {X Y Z : C} (f : X ~> Exp Y Z),
-    fmap (@uncurry C _ X Y Z f) = uncurry (exp_out ∙ fmap f) ∙ prod_out
+    fmap (@uncurry C _ X Y Z f) = uncurry (exp_out _ _ ∙ fmap f) ∙ prod_out
 }.
+
+Arguments exp_in {C _ D _ _ _ _} /.
+Arguments exp_out {C _ D _ _ _ _} /.
+
+Corollary exp_in_out `{ClosedFunctor C D} : forall(X Y : C),
+  exp_in ∙ exp_out = @id _ _ (fobj (Exp X Y)).
+Proof.
+  intros.
+  exact (iso_from_to (iso_witness (@fobj_exp_iso _ _ _ _ _ X Y))).
+Qed.
+
+Corollary exp_out_in `{ClosedFunctor C D} : forall(X Y : C),
+  exp_out ∙ exp_in = @id _ _ (Exp (fobj X) (fobj Y)).
+Proof.
+  intros.
+  exact (iso_to_from (iso_witness (@fobj_exp_iso _ _ _ _ _ X Y))).
+Qed.
 
 Corollary exp_in_inj `{ClosedFunctor C D} :
   ∀ {X Y Z : C} (f g : fobj X ~> Exp (fobj Y) (fobj Z)),
@@ -300,6 +399,14 @@ Proof.
   reflexivity.
 Qed.
 
+Class InitialFunctor `(_ : Initial C) `(_ : Initial D) := {
+  initial_category_functor :> @CategoryFunctor C _ D _;
+
+  map_zero : fobj Zero ~> Zero;
+
+  fmap_zero : ∀ {X : C}, fmap zero = @zero _ _ (fobj X) ∙  map_zero
+}.
+
 Module CCC.
 
 Section CCC.
@@ -311,9 +418,10 @@ Context `{F : @ClosedFunctor Type _ k _}.
 Import EqNotations.
 
 Definition rel `(lam : a -> b) (ccc : fobj a ~> fobj b) : Prop :=
-  fmap (H:=cartesian_category
+  fmap (H:=terminal_category
+          (Terminal:=cartesian_terminal
              (Cartesian:=closed_cartesian
-                           (Closed:=Coq_Closed))) lam = ccc.
+                (Closed:=Coq_Closed)))) lam = ccc.
 
 Infix "==>" := rel.
 
@@ -346,17 +454,15 @@ Proof.
   rewrite <- (@comp_assoc _ _ _ _ _ _ _ prod_out).
   rewrite prod_out_in.
   rewrite id_right.
-  pose proof (proj2 (exp_out_inj (fmap[ k] U) (exp_in ∙ U'))).
-  apply H1 in H0.
-  rewrite comp_assoc in H0.
-  rewrite exp_out_in in H0.
-  rewrite id_left in H0.
-  subst.
-  clear H1.
-  rewrite curry_apply.
+  generalize (proj2 (exp_out_inj (fmap U) (exp_in ∙ U')) H0).
+  rewrite comp_assoc.
+  rewrite exp_out_in.
   rewrite id_left.
+  intros; subst.
   rewrite <- apply_curry.
   rewrite curry_uncurry.
+  rewrite curry_apply.
+  rewrite id_left.
   reflexivity.
 Qed.
 
@@ -364,41 +470,31 @@ Theorem ccc_curry :
   ∀ (a b c : Type)
     (U : a * b -> c) (U' : Prod (fobj a) (fobj b) ~> fobj c),
     U ==> U' ∙ prod_out ->
-    (λ x, λ y, U (x, y)) ==> exp_in ∙ curry U'.
+      (λ x, λ y, U (x, y)) ==> exp_in ∙ curry U'.
 Proof.
   unfold rel; intros; subst.
-  pose proof (@fmap_curry Type _ k _ _ a b c U).
-  simpl in H1.
-  unfold arrow in H1.
+  generalize (@fmap_curry Type _ k _ _ a b c U).
   simpl.
-  rewrite H1; clear H1.
-  pose proof (@exp_in_inj Type _ k _ _ a b c).
+  unfold arrow.
+  intro H1; rewrite H1; clear H1.
+  pose proof (@exp_in_inj Type _ k _ _ a b c) as H1.
   apply H1; clear H1.
-  simpl in H0.
-  rewrite H0; clear H0.
+  simpl in H0; rewrite H0; clear H0.
   rewrite <- comp_assoc.
-  pose proof (@prod_out_in Type _ k _ _ a b).
-  simpl in H0.
-  rewrite H0.
+  pose proof (@prod_out_in Type _ k _ _ a b) as H1.
+  simpl in H1; rewrite H1; clear H1.
   rewrite id_right.
   reflexivity.
 Qed.
 
-Theorem ccc_const : ∀ (a b : Type) (c : b),
-  (λ x : a, c) ==> fmap (@const b unit c) ∙ @it _ _ a.
+Theorem ccc_terminal : ∀ (a : Type),
+  (λ _ : a, tt) ==> map_one ∙ @one _ _ (fobj a).
 Proof.
   unfold rel; intros.
-  rewrite <- H0; clear H0.
-  rewrite <- fmap_comp.
-  reflexivity.
-Qed.
-
-Theorem ccc_const' : ∀ (a b : Type) (c : b),
-  const c ==> fmap (@const b unit c) ∙ fmap it.
-Proof.
-  unfold rel; intros.
-  rewrite <- H0; clear H0.
-  rewrite <- fmap_comp.
+  replace (λ _ : a, ()) with (@one _ _ a) by auto.
+  pose proof @fmap_one.
+  simpl in H0.
+  rewrite H0.
   reflexivity.
 Qed.
 
@@ -419,7 +515,7 @@ Program Instance Coq_ConstCat (b : Type) : ConstCat arrow b := {
 }.
 
 (* Definition const `{ConstCat k b} (x : b) `(f : k a b) := *)
-(*     unitArrow x ∘ it a. *)
+(*     unitArrow x ∘ that a. *)
 
 Class BoolCat (k : Type -> Type -> Type) := {
   boolcat_cartesian :> Cartesian k;
@@ -554,7 +650,7 @@ Program Instance Const_Cartesian : Cartesian Const := {
 }.
 
 Program Instance Const_Terminal : Terminal Const := {
-  it := fun _ => mkC "it"
+  that := fun _ => mkC "that"
 }.
 
 Program Instance Const_Closed : Closed Const := {
@@ -625,7 +721,7 @@ Program Instance Kleisli_Cartesian : Cartesian kleisli := {
 }.
 
 Program Instance Kleisli_Terminal : Terminal kleisli := {
-  it := fun _ a => pure tt
+  that := fun _ a => pure tt
 }.
 
 Program Instance Kleisli_Closed : Closed kleisli := {

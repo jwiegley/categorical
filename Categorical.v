@@ -64,7 +64,6 @@ Defined.
 Add Parametric Morphism `{Category C} (a b : C) : eqv
   with signature (eqv --> @eqv _ _ a b ++> impl)
     as impl_eqv.
-(* implication respects equivalence *)
 Proof.
   intros.
   rewrite H0, <- H1.
@@ -74,7 +73,6 @@ Qed.
 Add Parametric Morphism `{Category C} (a b : C) : eqv
   with signature (eqv --> @eqv _ _ a b ++> flip impl)
     as flip_impl_eqv.
-(* flipped implication respects equivalence *)
 Proof.
   intros.
   rewrite H0, <- H1.
@@ -125,16 +123,6 @@ Record isomorphic `{Category ob} (X Y : ob) : Type := {
 
 Infix "≅" := isomorphic (at level 100).
 
-(*
-Program Instance Iso_Equivalence `{Category C} : Equivalence (@isomorphic C _).
-Obligation 1.
-  unfold Reflexive; intros.
-  apply Build_isomorphic with (iso_to:=id) (iso_from:=id).
-  constructor;
-  rewrite id_left; reflexivity.
-Qed.
-*)
-
 Class Terminal (ob : Type) := {
   terminal_category :> Category ob;
   One : ob;
@@ -147,15 +135,15 @@ Program Instance Coq_Terminal : Terminal Type := {
   one := fun _ a => tt
 }.
 
-Class Constant `(_ : Terminal ob) := {
-  constant : ∀ {A}, A -> One ~> A
+(*
+Class Constant `(_ : Terminal ob) (A : ob) := {
+  constant : One ~> A
 }.
 
-Arguments Constant ob {_}.
+Arguments Constant ob {_} A.
 
-Program Instance Coq_Constant : Constant Type := {
-  constant := fun _ t _ => t
-}.
+Definition Value `(x : A) : One ~> A := const x.
+*)
 
 Class Cartesian (ob : Type) := {
   cartesian_terminal :> Terminal ob;
@@ -285,24 +273,6 @@ Proof.
   reflexivity.
 Qed.
 
-(* Corollary curry_uncurry `{Closed C} : ∀ {X Y Z} (f : X ~> Exp Y Z), *)
-(*   curry (uncurry f) ≈ f. *)
-(* Proof. *)
-(*   intros. *)
-(*   replace (curry (uncurry f)) with ((@compose Type _ _ _ _ curry uncurry) f) by auto. *)
-(*   rewrite (iso_to_from (@curry_uncurry_iso _ _ X Y Z)). *)
-(*   reflexivity. *)
-(* Qed. *)
-
-(* Corollary uncurry_curry `{Closed C} : ∀ {X Y Z} (f : Prod X Y ~> Z), *)
-(*   uncurry (curry f) ≈ f. *)
-(* Proof. *)
-(*   intros. *)
-(*   replace (uncurry (curry f)) with ((@compose Type _ _ _ _ uncurry curry) f) by auto. *)
-(*   rewrite (iso_from_to (@curry_uncurry_iso _ _ X Y Z)). *)
-(*   reflexivity. *)
-(* Qed. *)
-
 Program Instance Coq_Closed : Closed Type := {
   closed_cartesian := Coq_Cartesian;
   Exp := arrow;
@@ -310,16 +280,6 @@ Program Instance Coq_Closed : Closed Type := {
   curry := fun _ _ _ f a b => f (a, b);
   uncurry := fun _ _ _ f p => f (fst p) (snd p)
 }.
-(* Obligation 2. *)
-(*   constructor; intros. *)
-(*     simpl. *)
-(*     extensionality p; simpl; auto. *)
-(*   simpl. *)
-(*   extensionality x; simpl. *)
-(*   extensionality p. *)
-(*   rewrite <- surjective_pairing. *)
-(*   reflexivity. *)
-(* Qed. *)
 Obligation 2.
   extensionality x.
   rewrite <- surjective_pairing.
@@ -492,8 +452,6 @@ Proof.
   exact (@fmap_respects _ _ _ _ _ a b).
 Defined.
 
-(* Notation "fmap[ M ]" := (@fmap _ _ M _ _ _ _) (at level 9). *)
-
 Class TerminalFunctor `(_ : Terminal C) `(_ : Terminal D) := {
   terminal_category_functor :> @CategoryFunctor C _ D _;
 
@@ -526,14 +484,14 @@ Arguments prod_out {C _ D _ _ _ _} /.
 Notation "prod_in[ C -> D | X ~> Y  ]" := (@prod_in C _ _ _ D _ _ _ _ X Y).
 Notation "prod_out[ C -> D | X ~> Y  ]" := (@prod_out C _ _ _ D _ _ _ _ X Y).
 
-Corollary prod_in_out `{CartesianFunctor C D} : forall(X Y : C),
+Corollary prod_in_out `{CartesianFunctor C D} : ∀ (X Y : C),
   prod_in ∙ prod_out ≈ @id _ _ (fobj (Prod X Y)).
 Proof.
   intros.
   exact (iso_from_to (iso_witness (@fobj_prod_iso _ _ _ _ _ X Y))).
 Qed.
 
-Corollary prod_out_in `{CartesianFunctor C D} : forall(X Y : C),
+Corollary prod_out_in `{CartesianFunctor C D} : ∀ (X Y : C),
   prod_out ∙ prod_in ≈ @id _ _ (Prod (fobj X) (fobj Y)).
 Proof.
   intros.
@@ -597,14 +555,14 @@ Arguments ClosedFunctor C {_} D {_}.
 Arguments exp_in {C _ D _ _ _ _} /.
 Arguments exp_out {C _ D _ _ _ _} /.
 
-Corollary exp_in_out `{ClosedFunctor C D} : forall(X Y : C),
+Corollary exp_in_out `{ClosedFunctor C D} : ∀ (X Y : C),
   exp_in ∙ exp_out ≈ @id _ _ (fobj (Exp X Y)).
 Proof.
   intros.
   exact (iso_from_to (iso_witness (@fobj_exp_iso _ _ _ _ _ X Y))).
 Qed.
 
-Corollary exp_out_in `{ClosedFunctor C D} : forall(X Y : C),
+Corollary exp_out_in `{ClosedFunctor C D} : ∀ (X Y : C),
   exp_out ∙ exp_in ≈ @id _ _ (Exp (fobj X) (fobj Y)).
 Proof.
   intros.
@@ -655,6 +613,80 @@ Class InitialFunctor `(_ : Initial C) `(_ : Initial D) := {
     @fmap C _ D _ _ Zero X zero ≈ @zero _ _ _ (fobj X) ∙ map_zero
 }.
 
+Arguments InitialFunctor C {_ _} D {_ _}.
+
+Class CocartesianFunctor `(_ : Cocartesian C) `(_ : Cocartesian D) := {
+  initial_functor :> InitialFunctor C D;
+
+  fobj_sum_iso : ∀ {X Y : C}, fobj (Sum X Y) ≅ Sum (fobj X) (fobj Y);
+
+  sum_in  := fun X Y => iso_from (@fobj_sum_iso X Y);
+  sum_out := fun X Y => iso_to   (@fobj_sum_iso X Y);
+
+  fmap_inl : ∀ {X Y : C}, fmap (@inl C _ _ _ X Y) ≈ sum_in _ _ ∙ inl;
+  fmap_inr : ∀ {X Y : C}, fmap (@inr C _ _ _ X Y) ≈ sum_in _ _ ∙ inr;
+  fmap_join : ∀ {X Y Z : C} (f : Y ~> X) (g : Z ~> X),
+    fmap (f ▽ g) ≈ fmap f ▽ fmap g ∙ sum_out _ _
+}.
+
+Arguments CocartesianFunctor C {_ _ _} D {_ _ _}.
+
+Arguments sum_in {C _ _ _ D _ _ _ _ _ _} /.
+Arguments sum_out {C _ _ _ D _ _ _ _ _ _} /.
+
+Notation "sum_in[ C -> D | X ~> Y  ]" := (@sum_in C _ _ _ D _ _ _ _ X Y).
+Notation "sum_out[ C -> D | X ~> Y  ]" := (@sum_out C _ _ _ D _ _ _ _ X Y).
+
+Corollary sum_in_out `{CocartesianFunctor C D} : ∀ (X Y : C),
+  sum_in ∙ sum_out ≈ @id _ _ (fobj (Sum X Y)).
+Proof.
+  intros.
+  exact (iso_from_to (iso_witness (@fobj_sum_iso _ _ _ _ _ _ _ _ _ X Y))).
+Qed.
+
+Corollary sum_out_in `{CocartesianFunctor C D} : ∀ (X Y : C),
+  sum_out ∙ sum_in ≈ @id _ _ (Sum (fobj X) (fobj Y)).
+Proof.
+  intros.
+  exact (iso_to_from (iso_witness (@fobj_sum_iso _ _ _ _ _ _ _ _ _ X Y))).
+Qed.
+
+Corollary sum_in_surj `{CocartesianFunctor C D} :
+  ∀ {X Y Z : C} (f g : fobj (Sum X Y) ~> fobj X),
+    f ∙ sum_in ≈ g ∙ sum_in <-> f ≈ g.
+Proof.
+  split; intros.
+    rewrite <- id_right.
+    rewrite <- sum_in_out.
+    rewrite comp_assoc.
+    rewrite H6.
+    rewrite <- comp_assoc.
+    rewrite sum_in_out.
+    rewrite id_right.
+    reflexivity.
+  subst.
+  rewrite H6.
+  reflexivity.
+Qed.
+
+Corollary sum_out_inj `{CocartesianFunctor C D} :
+  ∀ {X Y Z : C} (f g : Sum (fobj Y) (fobj Z) ~> fobj X),
+    f ∙ sum_out ≈ g ∙ sum_out <-> f ≈ g.
+Proof.
+  split; intros.
+    rewrite <- id_right.
+    rewrite <- sum_out_in.
+    rewrite comp_assoc.
+    rewrite H6.
+    rewrite <- comp_assoc.
+    rewrite sum_out_in.
+    rewrite id_right.
+    reflexivity.
+  subst.
+  rewrite H6.
+  reflexivity.
+Qed.
+
 Module CCC.
 
 Section CCC.
@@ -671,30 +703,33 @@ Definition rel `(lam : a -> b) (ccc : fobj a ~> fobj b) : Prop :=
              (Cartesian:=closed_cartesian
                 (Closed:=Coq_Closed)))) lam ≈ ccc.
 
-Infix "==>" := rel.
+Infix "===>" := rel (at level 99).
 
-Theorem ccc_id : ∀ (a : Type), (λ x : a, x) ==> id.
+Theorem ccc_id : ∀ (a : Type), (λ x : a, x) ===> id.
 Proof.
   unfold rel; intros.
   rewrite <- fmap_id.
   reflexivity.
 Qed.
 
+Tactic Notation "step" constr(x) "=>" constr(y) :=
+  replace x with y by auto.
+
 Theorem ccc_apply :
   ∀ (a b c : Type)
     (U : a -> b -> c) (U' : fobj a ~> Exp (fobj b) (fobj c))
     (V : a -> b) (V' : fobj a ~> fobj b),
-  U ==> exp_in ∙ U' ->
-  V ==> V' ->
-    (λ x, U x (V x)) ==> apply ∙ (U' △ V').
+  U ===> exp_in ∙ U' ->
+  V ===> V' ->
+    (λ x, U x (V x)) ===> apply ∙ (U' △ V').
 Proof.
   unfold rel; intros; subst.
-  replace (λ x, U x (V x))
-     with (λ x, @apply Type _ b c (U x, V x)) by auto.
-  replace (λ x, @apply Type _ b c (U x, V x))
-     with (λ x, @apply Type _ b c ((U △ V) x)) by auto.
-  replace (λ x, @apply Type _ b c ((U △ V) x))
-     with (@apply Type _ b c ∙ (U △ V)) by auto.
+  step (λ x, U x (V x)) => (λ x, @apply Type _ b c (U x, V x)).
+  step (λ x, U x (V x)) => (λ x, @apply Type _ b c (U x, V x)).
+  step (λ x, @apply Type _ b c (U x, V x))
+    => (λ x, @apply Type _ b c ((U △ V) x)).
+  step (λ x, @apply Type _ b c ((U △ V) x))
+    => (@apply Type _ b c ∙ (U △ V)).
   rewrite fmap_comp.
   rewrite fmap_apply.
   rewrite fmap_fork.
@@ -718,8 +753,8 @@ Qed.
 Theorem ccc_curry :
   ∀ (a b c : Type)
     (U : a * b -> c) (U' : Prod (fobj a) (fobj b) ~> fobj c),
-    U ==> U' ∙ prod_out ->
-      (λ x, λ y, U (x, y)) ==> exp_in ∙ curry U'.
+    U ===> U' ∙ prod_out ->
+      (λ x, λ y, U (x, y)) ===> exp_in ∙ curry U'.
 Proof.
   unfold rel; intros; subst.
   generalize (@fmap_curry Type _ ob _ _ a b c U).
@@ -737,10 +772,10 @@ Proof.
 Qed.
 
 Theorem ccc_terminal : ∀ (a : Type),
-  (λ _ : a, tt) ==> map_one ∙ @one _ _ (fobj a).
+  (λ _ : a, tt) ===> map_one ∙ @one _ _ (fobj a).
 Proof.
   unfold rel; intros.
-  replace (λ _ : a, ()) with (@one _ _ a) by auto.
+  step (λ _ : a, ()) => (@one _ _ a).
   pose proof @fmap_one.
   simpl in H0.
   rewrite H0.
@@ -760,12 +795,22 @@ Inductive Obj : Type :=
   | Zero_ : Obj
   | Sum_  : Obj -> Obj -> Obj.
 
+Fixpoint denote (o : Obj) :
+  ∀ `{Closed C} `{@Initial C _} `{@Cocartesian C _ _}, C :=
+  fun _ _ _ _ => match o with
+  | One_      => One
+  | Prod_ x y => Prod (denote x) (denote y)
+  | Exp_ x y  => Exp (denote x) (denote y)
+  | Zero_     => Zero
+  | Sum_ x y  => Sum (denote x) (denote y)
+  end.
+
 Inductive Hom : Obj -> Obj -> Type :=
   | Id      : ∀ a, Hom a a
   | Compose : ∀ a b c, Hom b c -> Hom a b -> Hom a c
 
   | One'      : ∀ a, Hom a One_
-  | Constant' : ∀ a, Hom One_ a
+  (* | Constant' : ∀ a, Hom One_ a *)
 
   | Exl     : ∀ a b, Hom (Prod_ a b) a
   | Exr     : ∀ a b, Hom (Prod_ a b) b
@@ -781,39 +826,22 @@ Inductive Hom : Obj -> Obj -> Type :=
   | Inr     : ∀ a b, Hom b (Sum_ a b)
   | Join    : ∀ a c d, Hom c a -> Hom d a -> Hom (Sum_ c d) a
 
-  (* | Distl   : ∀ u v a, Hom (Prod_ (Sum_ u v) a) (Sum_ (Prod_ u a) (Prod_ v a)) *)
-  (* | Distr   : ∀ b u v, Hom (Prod_ b (Sum_ u v)) (Sum_ (Prod_ b u) (Prod_ b v)) *)
-.
+  | Distl   : ∀ u v a, Hom (Prod_ (Sum_ u v) a) (Sum_ (Prod_ u a) (Prod_ v a))
+  | Distr   : ∀ b u v, Hom (Prod_ b (Sum_ u v)) (Sum_ (Prod_ b u) (Prod_ b v)).
 
-Fixpoint denote (o : Obj) :
-  ∀ `{Closed C} `{@Initial C _} `{@Cocartesian C _ _}, C :=
-  fun _ _ _ _ => match o with
-  | One_      => One
-  | Prod_ x y => Prod (denote x) (denote y)
-  | Exp_ x y  => Exp (denote x) (denote y)
-  | Zero_     => Zero
-  | Sum_ x y  => Sum (denote x) (denote y)
-  end.
-
-(* Coq abstract data types are represented in CCC by identifying their
-   equivalent construction. *)
-Class Represented (C : Type) := {
-  repr : C -> Obj;
-  abst : Obj -> C;
-
-  abst_repr : ∀ x, abst (repr x) = x
-}.
-
-Program Fixpoint eval `(c : Hom a b) :
-  ∀ `{Closed C} `{@Initial C _} `{@Cocartesian C _ _}
-    `{Represented (@denote b C _ _ _)},
-    denote a ~{C}~> denote b := fun _ _ _ _ _ =>
+Fixpoint eval `(c : Hom a b) :
+  ∀ `{Closed C}
+    `{@Initial C _}
+    `{@Cocartesian C _ _}
+    `{@Bicartesian C _ _ _ _}
+    `{@Distributive C _ _ _ _ _},
+    denote a ~{C}~> denote b := fun C _ _ _ _ _ =>
   match c with
   | Id _              => id
   | Compose _ _ _ f g => eval f ∙ eval g
 
   | One' _            => one
-  | Constant' x       => abst x
+  (* | Constant' _       => _ *)
 
   | Exl _ _           => exl
   | Exr _ _           => exr
@@ -828,6 +856,9 @@ Program Fixpoint eval `(c : Hom a b) :
   | Inl _ _           => inl
   | Inr _ _           => inr
   | Join _ _ _ f g    => join (eval f) (eval g)
+
+  | Distl _ _ _       => iso_to prod_sum_distl
+  | Distr _ _ _       => iso_to prod_sum_distr
   end.
 
 Program Instance Hom_Category : Category Obj := {
@@ -835,8 +866,12 @@ Program Instance Hom_Category : Category Obj := {
   id := Id;
   compose := Compose;
   eqv := fun _ _ f g =>
-           ∀ `{Closed C} `{@Initial C _} `{@Cocartesian C _ _},
-             @eqv C _ _ _ (eval f) (eval g)
+    ∀ `{Closed C}
+      `{@Initial C _}
+      `{@Cocartesian C _ _}
+      `{@Bicartesian C _ _ _ _}
+      `{@Distributive C _ _ _ _ _},
+      @eqv C _ _ _ (eval f) (eval g)
 }.
 Obligation 1.
   constructor.
@@ -845,12 +880,12 @@ Obligation 1.
   - intros ?????.
     symmetry.
     apply H.
-  - intros ?????????.
+  - intros ???????????.
     rewrite H, H0.
     reflexivity.
 Defined.
 Obligation 2.
-  intros ??????????.
+  intros ????????????.
   simpl.
   rewrite H, H0.
   reflexivity.
@@ -874,9 +909,9 @@ Program Instance Hom_Terminal : Terminal Obj := {
   one := One'
 }.
 
-Program Instance Hom_Constant : Constant Obj := {
-  constant := fun _ _ p => Constant' p
-}.
+(* Program Instance Hom_Constant : Constant Obj := { *)
+(*   constant := fun _ _ p => Constant' p *)
+(* }. *)
 
 Program Instance Hom_Cartesian : Cartesian Obj := {
   cartesian_terminal := Hom_Terminal;
@@ -886,14 +921,14 @@ Program Instance Hom_Cartesian : Cartesian Obj := {
   exr  := Exr
 }.
 Obligation 1.
-  intros ??????????.
+  intros ????????????.
   simpl.
   rewrite H, H0.
   reflexivity.
 Qed.
 Obligation 2.
   split; intros.
-    split; intros ????.
+    split; intros ??????.
       rewrite H.
       rewrite exl_fork.
       reflexivity.
@@ -902,7 +937,7 @@ Obligation 2.
     reflexivity.
   destruct H.
   rewrite <- H.
-  rewrite <- H3.
+  rewrite <- H5.
   rewrite fork_compose.
   rewrite fork_exl_exr.
   rewrite id_left.
@@ -917,13 +952,13 @@ Program Instance Hom_Closed : Closed Obj := {
   uncurry := Uncurry
 }.
 Obligation 1.
-  intros ???????.
+  intros ?????????.
   simpl.
   rewrite H.
   reflexivity.
 Qed.
 Obligation 2.
-  intros ???????.
+  intros ?????????.
   simpl.
   rewrite H.
   reflexivity.
@@ -956,14 +991,14 @@ Program Instance Hom_Cocartesian : Cocartesian Obj := {
   inr  := Inr
 }.
 Obligation 1.
-  intros ??????????.
+  intros ????????????.
   simpl.
   rewrite H, H0.
   reflexivity.
 Qed.
 Obligation 2.
   split; intros.
-    split; intros ????.
+    split; intros ??????.
       rewrite H.
       rewrite inl_join.
       reflexivity.
@@ -972,7 +1007,7 @@ Obligation 2.
     reflexivity.
   destruct H.
   rewrite <- H.
-  rewrite <- H3.
+  rewrite <- H5.
   rewrite join_compose.
   rewrite join_inl_inr.
   rewrite id_right.
@@ -984,6 +1019,8 @@ Section Hom.
 Context `{Closed C}.
 Context `{@Initial C _}.
 Context `{@Cocartesian C _ _}.
+Context `{@Bicartesian C _ _ _ _}.
+Context `{@Distributive C _ _ _ _ _}.
 
 Global Program Instance Hom_CategoryFunctor :
   CategoryFunctor Obj C := {
@@ -1047,14 +1084,53 @@ Obligation 4.
   reflexivity.
 Qed.
 
+Global Program Instance Hom_InitialFunctor :
+  InitialFunctor Obj C := {
+  map_zero := id
+}.
+Obligation 1.
+  rewrite id_right.
+  reflexivity.
+Qed.
+
+Global Program Instance Hom_CocartesianFunctor :
+  CocartesianFunctor Obj C := {
+  initial_functor := Hom_InitialFunctor;
+  fobj_sum_iso := _
+}.
+Obligation 1.
+  apply Build_isomorphic with (iso_to:=id) (iso_from:=id).
+  constructor; rewrite id_left; reflexivity.
+Defined.
+Obligation 2.
+  rewrite id_left.
+  reflexivity.
+Qed.
+Obligation 3.
+  rewrite id_left.
+  reflexivity.
+Qed.
+Obligation 4.
+  rewrite id_right.
+  reflexivity.
+Qed.
+
 End Hom.
 
-Import EqNotations.
+(*
+(* Coq abstract data types are represented in CCC by identifying their
+   equivalent construction. *)
+Class Represented (A : Type) `{Terminal C} (B : C) := {
+  repr : A -> One ~> B;
+  abst : One ~> B -> A;
 
-Program Instance unit_Represented : Represented (unit : Type) := {
-  Rep := One_;
-  repr := fun _ => one
+  abst_repr : ∀ x, abst (repr x) = x
 }.
+
+Program Instance unit_Represented : Represented (unit : Type) One_ := {
+  repr  := fun _ : unit => Constant' One_
+}.
+Obligation 1.
 Obligation 2.
   destruct x.
   reflexivity.
@@ -1092,9 +1168,10 @@ Obligation 2.
   rewrite eval_repr1.
   reflexivity.
 Qed.
+*)
 
 Definition foo `(f : Prod A B ~> C) :=
-  Eval simpl in apply ∙ (curry f ∙ exl) △ exr ∙ constant True.
+  Eval simpl in apply ∙ (curry f ∙ exl) △ exr.
 Print foo.
 
 End Expr.

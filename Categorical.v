@@ -756,8 +756,6 @@ End CCC.
 
 Module Expr.
 
-Section Expr.
-
 Inductive Obj : Type :=
   | One_  : Obj
   | Prod_ : Obj -> Obj -> Obj
@@ -785,8 +783,6 @@ Inductive Cat : Obj -> Obj -> Type :=
 
   (* | Distl   : ∀ u v a, Cat (Prod (Sum u v) a) (Sum (Prod u a) (Prod v a)) *)
   (* | Distr   : ∀ b u v, Cat (Prod b (Sum u v)) (Sum (Prod b u) (Prod b v)). *)
-
-End Expr.
 
 Fixpoint denote (o : Obj) : ∀ `{Closed C}, C :=
   fun _ _ => match o with
@@ -964,3 +960,5 @@ Obligation 4.
   rewrite id_left.
   reflexivity.
 Qed.
+
+End Expr.

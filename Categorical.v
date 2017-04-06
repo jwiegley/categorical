@@ -510,9 +510,6 @@ Class CartesianFunctor `(_ : Cartesian C) `(_ : Cartesian D) := {
 
   fobj_prod_iso : ∀ {X Y : C}, fobj (Prod X Y) ≅ Prod (fobj X) (fobj Y);
 
-  prod_one_right_iso : ∀ {X Y : C}, Prod X One ≅ X;
-  prod_one_left_iso  : ∀ {X Y : C}, Prod One X ≅ X;
-
   prod_in  := fun X Y => iso_from (@fobj_prod_iso X Y);
   prod_out := fun X Y => iso_to   (@fobj_prod_iso X Y);
 
@@ -798,8 +795,8 @@ Fixpoint denote (o : Obj) : ∀ `{Closed C}, C :=
   | Exp_ x y => Exp (denote x) (denote y)
   end.
 
-Fixpoint eval `(c : Cat a b) :
-  ∀ `{Closed C}, denote a ~{C}~> denote b := fun _ _ =>
+Program Fixpoint eval `(c : Cat a b) :
+  ∀ `{Closed C}, denote a ~{C}~> denote b := fun C _ =>
   match c with
   | Id _              => id
   | Compose _ _ _ f g => eval f ∙ eval g
@@ -917,13 +914,20 @@ Obligation 2.
   reflexivity.
 Qed.
 Obligation 3.
-Admitted.
+  apply curry_uncurry.
+Qed.
 Obligation 4.
-Admitted.
+  apply uncurry_curry.
+Qed.
 Obligation 5.
-Admitted.
+  apply curry_apply.
+Qed.
 Obligation 6.
-Admitted.
+  rewrite apply_curry.
+  rewrite fork_exl_exr.
+  rewrite id_right.
+  reflexivity.
+Qed.
 
 Program Instance Cat_CategoryFunctor `{H : Closed C} :
   CategoryFunctor Obj C := {
@@ -942,31 +946,24 @@ Qed.
 
 Program Instance Cat_CartesianFunctor `{H : Closed C} :
   CartesianFunctor Obj C := {
-  fobj_prod_iso := _;
-
-  prod_one_right_iso := _;
-  prod_one_left_iso  := _
+  fobj_prod_iso := _
 }.
 Obligation 1.
-  simpl.
   apply Build_isomorphic with (iso_to:=id) (iso_from:=id).
   constructor; rewrite id_left; reflexivity.
 Defined.
 Obligation 2.
-  simpl.
-Admitted.
+  rewrite id_right.
+  reflexivity.
+Qed.
 Obligation 3.
-  simpl.
-Admitted.
+  rewrite id_right.
+  reflexivity.
+Qed.
 Obligation 4.
-  simpl.
-Admitted.
-Obligation 5.
-  simpl.
-Admitted.
-Obligation 6.
-  simpl.
-Admitted.
+  rewrite id_left.
+  reflexivity.
+Qed.
 
 (*
 Program Instance Free_CategoryFunctor `{H : Closed C} `{Represented C} :

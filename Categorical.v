@@ -10,7 +10,6 @@ Require Import
   FunctionalExtensionality.
 
 (*
-- Make A * B and A + B and B ^ A notations for prod and sum and exp.
 - Break into multiple files
 - Move into category-theory
 *)
@@ -25,9 +24,9 @@ Notation "f -> g" := (f -> g)%type : category_scope.
 Open Scope category_scope.
 Delimit Scope category_scope with category.
 
-Reserved Notation "f ∙ g" (at level 30, right associativity).
-Reserved Notation "f ~> g" (at level 90, right associativity).
-Reserved Notation "f ≈ g" (at level 79).
+Reserved Infix "∙" (at level 30, right associativity).
+Reserved Infix "~>" (at level 90, right associativity).
+Reserved Infix "≈" (at level 79).
 
 Class Category (ob : Type) := {
   uhom := Type : Type;
@@ -174,24 +173,26 @@ Obligation 1.
   reflexivity.
 Qed.
 
+Reserved Infix "×" (at level 40, left associativity).
+
 Class Cartesian (ob : Type) := {
   cartesian_terminal :> Terminal ob;
 
   Prod : ob -> ob -> ob
-    where "X * Y" := (Prod X Y);
+    where "X × Y" := (Prod X Y);
 
-  fork : ∀ {X Z W}, X ~> Z -> X ~> W -> X ~> Z * W;
-  exl  : ∀ {X Y}, X * Y ~> X;
-  exr  : ∀ {X Y}, X * Y ~> Y;
+  fork : ∀ {X Z W}, X ~> Z -> X ~> W -> X ~> Z × W;
+  exl  : ∀ {X Y}, X × Y ~> X;
+  exr  : ∀ {X Y}, X × Y ~> Y;
 
   fork_respects : ∀ X Z W,
-    Proper (@eqv _ _ X Z ==> @eqv _ _ X W ==> @eqv _ _ X (Z * W)) fork;
+    Proper (@eqv _ _ X Z ==> @eqv _ _ X W ==> @eqv _ _ X (Z × W)) fork;
 
-  univ_products : ∀ {X Y Z} {f : X ~> Y} {g : X ~> Z} {h : X ~> Y * Z},
+  univ_products : ∀ {X Y Z} {f : X ~> Y} {g : X ~> Z} {h : X ~> Y × Z},
     h ≈ fork f g <-> exl ∙ h ≈ f ∧ exr ∙ h ≈ g
 }.
 
-Infix "*" := Prod : category_scope.
+Infix "×" := Prod : category_scope.
 Infix "△" := fork (at level 28) : category_scope.
 
 Add Parametric Morphism `(_ : Cartesian ob) (a b c : ob) : (@fork ob _ a b c)
@@ -215,11 +216,11 @@ Proof.
 Qed.
 
 Corollary fork_exl_exr `{Cartesian C} : ∀ {X Y},
-  exl △ exr ≈ @id C _ (X * Y).
+  exl △ exr ≈ @id C _ (X × Y).
 Proof.
   intros.
   symmetry.
-  apply (proj2 (@univ_products C H (X * Y) X Y exl exr id)).
+  apply (proj2 (@univ_products C H (X × Y) X Y exl exr id)).
   rewrite !id_right; auto.
 Qed.
 
@@ -236,10 +237,10 @@ Proof.
   auto.
 Qed.
 
-Notation "1 * X" := (Prod One X) (at level 40).
-Notation "X * 1" := (Prod X One) (at level 40).
+Notation "1 × X" := (Prod One X) (at level 40).
+Notation "X × 1" := (Prod X One) (at level 40).
 
-Theorem prod_one_l `{Cartesian C} : ∀ {X}, 1 * X ≅ X.
+Theorem prod_one_l `{Cartesian C} : ∀ {X}, 1 × X ≅ X.
 Proof.
   intros.
   refine {| iso_to   := exr
@@ -254,7 +255,7 @@ Proof.
   apply one_eqv.
 Defined.
 
-Theorem prod_one_r `{Cartesian C} : ∀ {X}, X * 1 ≅ X.
+Theorem prod_one_r `{Cartesian C} : ∀ {X}, X × 1 ≅ X.
 Proof.
   intros.
   refine {| iso_to   := exl
@@ -286,7 +287,7 @@ Obligation 1.
   reflexivity.
 Qed.
 
-Reserved Notation "f ≈> g" (at level 89, right associativity).
+Reserved Infix "≈>" (at level 89, right associativity).
 
 Class Closed (ob : Type) := {
   closed_cartesian :> Cartesian ob;
@@ -294,22 +295,22 @@ Class Closed (ob : Type) := {
   Exp : ob -> ob -> ob    (* internal homs *)
     where "X ≈> Y" := (Exp X Y);
 
-  apply : ∀ {X Y}, (X ≈> Y) * X ~> Y;
+  apply : ∀ {X Y}, (X ≈> Y) × X ~> Y;
 
-  curry : ∀ {X Y Z}, X * Y ~> Z -> X ~> Y ≈> Z;
-  uncurry : ∀ {X Y Z}, X ~> Y ≈> Z -> X * Y ~> Z;
+  curry : ∀ {X Y Z}, X × Y ~> Z -> X ~> Y ≈> Z;
+  uncurry : ∀ {X Y Z}, X ~> Y ≈> Z -> X × Y ~> Z;
 
   curry_respects : ∀ X Y Z,
-    Proper (@eqv _ _ (X * Y) Z ==> @eqv _ _ X (Y ≈> Z)) curry;
+    Proper (@eqv _ _ (X × Y) Z ==> @eqv _ _ X (Y ≈> Z)) curry;
   uncurry_respects : ∀ X Y Z,
-    Proper (@eqv _ _ X (Y ≈> Z) ==> @eqv _ _ (X * Y) Z) uncurry;
+    Proper (@eqv _ _ X (Y ≈> Z) ==> @eqv _ _ (X × Y) Z) uncurry;
 
   curry_uncurry : ∀ {X Y Z} (f : X ~> Y ≈> Z), curry (uncurry f) ≈ f;
-  uncurry_curry : ∀ {X Y Z} (f : X * Y ~> Z), uncurry (curry f) ≈ f;
+  uncurry_curry : ∀ {X Y Z} (f : X × Y ~> Z), uncurry (curry f) ≈ f;
 
   curry_apply : ∀ {X Y}, curry apply ≈ @id _ _ (X ≈> Y);
 
-  univ_exponentials : ∀ {X Y Z} (f : X * Y ~> Z),
+  univ_exponentials : ∀ {X Y Z} (f : X × Y ~> Z),
     apply ∙ (curry f ∙ exl) △ exr ≈ f
 }.
 
@@ -329,7 +330,7 @@ Proof.
 Defined.
 
 Corollary apply_curry `{Closed C} :
-  ∀ {X Y Z W} (f : Y * Z ~> W) (g : X ~> Y) (h : X ~> Z),
+  ∀ {X Y Z W} (f : Y × Z ~> W) (g : X ~> Y) (h : X ~> Z),
     apply ∙ ((curry f ∙ g) △ h) ≈ f ∙ g △ h.
 Proof.
   intros.
@@ -343,10 +344,22 @@ Proof.
   reflexivity.
 Qed.
 
-Theorem exp_prod `{Closed C} : ∀ {X Y Z},
-  X ≈> (Y * Z) ≅ X ≈> Y * X ≈> Z.
+Theorem exp_exp `{Closed C} : ∀ {X Y Z},
+  (X^Y)^Z ≅ X^(Y × Z).
 Proof.
   intros.
+  refine {| iso_to   := _
+          ; iso_from := _ |}.
+Admitted.
+
+Theorem exp_prod `{Closed C} : ∀ {X Y Z},
+  (Y × Z)^X ≅ Y^X × Z^X.
+Proof.
+  intros.
+  (* (X ≈> Y * Z) ~> X ≈> Y * X ≈> Z *)
+  (* Hom (Exp X (Prod Y Z)) (Prod (Exp X Y) (Exp X Z)) *)
+  refine {| iso_to   := _
+          ; iso_from := _ |}.
 Admitted.
 
 Notation "X ^ 1" := (Exp One X) (at level 30).
@@ -394,6 +407,7 @@ Class Initial `(_ : Category ob) := {
 Arguments Initial ob {_}.
 
 Notation "0 ~> X" := (Zero ~> X) (at level 50).
+Notation "X ^ 0" := (Exp Zero X) (at level 30).
 
 Corollary zero_comp `{Initial ob} : ∀ {A} {f : 0 ~> A},
   f ∙ zero ≈ zero.
@@ -530,21 +544,29 @@ Class Bicartesian `(_ : Cartesian C) `(_ : Cocartesian C).
 Global Program Instance Coq_Bicartesian : Bicartesian Coq_Cartesian Coq_Cocartesian.
 
 Class Distributive `(_ : Bicartesian C) := {
-  prod_sum_distl : ∀ {X Y Z : C}, (Y + Z) * X ≅ Y * X + Z * X;
-  prod_sum_distr : ∀ {X Y Z : C}, X * (Y + Z) ≅ X * Y + X * Z
+  prod_sum_distl : ∀ {X Y Z : C}, (Y + Z) × X ≅ Y × X + Z × X;
+  prod_sum_distr : ∀ {X Y Z : C}, X × (Y + Z) ≅ X × Y + X × Z
 }.
+
+Theorem exp_sum `{Closed C} : ∀ {X Y Z}, X^(Y + Z) ≅ X^Y + X^Z.
+Proof.
+Admitted.
+
+Theorem exp_zero `{Closed C} : ∀ {X}, X^0 ≅ One.
+Proof.
+Admitted.
 
 Global Program Instance Coq_Distributive : Distributive Coq_Bicartesian.
 Obligation 1.
   apply Build_isomorphic with
     (iso_to:=
-       fun p : ((Y + Z) * X) =>
+       fun p : ((Y + Z) × X) =>
          match p with
          | (Datatypes.inl y, x) => Datatypes.inl (y, x)
          | (Datatypes.inr z, x) => Datatypes.inr (z, x)
          end)
     (iso_from:=
-       fun p : ((Y * X) + (Z * X)) =>
+       fun p : ((Y × X) + (Z × X)) =>
          match p with
          | Datatypes.inl (y, x) => (Datatypes.inl y, x)
          | Datatypes.inr (z, x) => (Datatypes.inr z, x)
@@ -556,13 +578,13 @@ Qed.
 Obligation 2.
   apply Build_isomorphic with
     (iso_to:=
-       fun p : (X * (Y + Z)) =>
+       fun p : (X × (Y + Z)) =>
          match p with
          | (x, Datatypes.inl y) => Datatypes.inl (x, y)
          | (x, Datatypes.inr z) => Datatypes.inr (x, z)
          end)
     (iso_from:=
-       fun p : ((X * Y) + (X * Z)) =>
+       fun p : ((X × Y) + (X × Z)) =>
          match p with
          | Datatypes.inl (x, y) => (x, Datatypes.inl y)
          | Datatypes.inr (x, z) => (x, Datatypes.inr z)
@@ -607,7 +629,7 @@ Arguments TerminalFunctor C {_} D {_}.
 Class CartesianFunctor `(_ : Cartesian C) `(_ : Cartesian D) := {
   terminal_functor :> TerminalFunctor C D;
 
-  fobj_prod_iso : ∀ {X Y : C}, fobj (X * Y) ≅ fobj X * fobj Y;
+  fobj_prod_iso : ∀ {X Y : C}, fobj (X × Y) ≅ fobj X × fobj Y;
 
   prod_in  := fun X Y => iso_from (@fobj_prod_iso X Y);
   prod_out := fun X Y => iso_to   (@fobj_prod_iso X Y);
@@ -627,21 +649,21 @@ Notation "prod_in[ C -> D | X ~> Y  ]" := (@prod_in C _ _ _ D _ _ _ _ X Y).
 Notation "prod_out[ C -> D | X ~> Y  ]" := (@prod_out C _ _ _ D _ _ _ _ X Y).
 
 Corollary prod_in_out `{CartesianFunctor C D} : ∀ (X Y : C),
-  prod_in ∙ prod_out ≈ @id _ _ (fobj (X * Y)).
+  prod_in ∙ prod_out ≈ @id _ _ (fobj (X × Y)).
 Proof.
   intros.
   exact (iso_from_to (iso_witness (@fobj_prod_iso _ _ _ _ _ X Y))).
 Qed.
 
 Corollary prod_out_in `{CartesianFunctor C D} : ∀ (X Y : C),
-  prod_out ∙ prod_in ≈ @id _ _ (fobj X * fobj Y).
+  prod_out ∙ prod_in ≈ @id _ _ (fobj X × fobj Y).
 Proof.
   intros.
   exact (iso_to_from (iso_witness (@fobj_prod_iso _ _ _ _ _ X Y))).
 Qed.
 
 Corollary prod_in_inj `{CartesianFunctor C D} :
-  ∀ {X Y Z : C} (f g : fobj X ~> fobj X * fobj Y),
+  ∀ {X Y Z : C} (f g : fobj X ~> fobj X × fobj Y),
     prod_in ∙ f ≈ prod_in ∙ g <-> f ≈ g.
 Proof.
   split; intros.
@@ -659,7 +681,7 @@ Proof.
 Qed.
 
 Corollary prod_out_inj `{CartesianFunctor C D} :
-  ∀ {X Y Z : C} (f g : fobj X ~> fobj (Y * Z)),
+  ∀ {X Y Z : C} (f g : fobj X ~> fobj (Y × Z)),
     prod_out ∙ f ≈ prod_out ∙ g <-> f ≈ g.
 Proof.
   split; intros.
@@ -686,7 +708,7 @@ Class ClosedFunctor `(_ : Closed C) `(_ : Closed D) := {
 
   fmap_apply : ∀ {X Y : C},
     fmap (@apply C _ X Y) ≈ uncurry (curry apply ∙ exp_out _ _) ∙ prod_out;
-  fmap_curry : ∀ {X Y Z : C} {f : X * Y ~> Z},
+  fmap_curry : ∀ {X Y Z : C} {f : X × Y ~> Z},
     fmap (@curry C _ X Y Z f) ≈ exp_in _ _ ∙ curry (fmap f ∙ prod_in);
   fmap_uncurry : ∀ {X Y Z : C} (f : X ~> Y ≈> Z),
     fmap (@uncurry C _ X Y Z f) ≈ uncurry (exp_out _ _ ∙ fmap f) ∙ prod_out
@@ -921,7 +943,7 @@ Qed.
 
 Theorem ccc_curry :
   ∀ (a b c : Type)
-    (U : a * b -> c) (U' : fobj a * fobj b ~> fobj c),
+    (U : a * b -> c) (U' : fobj a × fobj b ~> fobj c),
     U ===> U' ∙ prod_out ->
       (λ x, λ y, U (x, y)) ===> exp_in ∙ curry U'.
 Proof.
@@ -974,7 +996,7 @@ Fixpoint denote `(o : Obj) :
     `{@Distributive C _ _ _ _ _}, C := fun _ _ _ _ _ _ =>
   match o with
   | One_      => One
-  | Prod_ x y => denote x * denote y
+  | Prod_ x y => denote x × denote y
   | Exp_ x y  => denote x ≈> denote y
   | Zero_     => Zero
   | Sum_ x y  => denote x + denote y
@@ -1336,7 +1358,7 @@ Defined.
 Program Instance prod_Represented
         `{@Represented A _ Hom_Terminal C}
         `{@Represented B _ Hom_Terminal D} :
-  Represented (@Datatypes.prod A B) (C * D) := {
+  Represented (@Datatypes.prod A B) (C × D) := {
   repr := fun p => repr (fst p) △ repr (snd p);
   abst := fun h => _
 }.
@@ -1358,7 +1380,7 @@ Definition add `(f : Sum One One ~> A) :=
   Eval simpl in f ∙ inl.
 Print add.
 
-Definition foo `(f : A * B ~> C) :=
+Definition foo `(f : A × B ~> C) :=
   Eval simpl in apply ∙ (curry f ∙ exl) △ exr.
 Print foo.
 

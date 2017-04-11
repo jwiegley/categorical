@@ -13,7 +13,6 @@ cabal-version: >=1.10
 library
   exposed-modules:
     Categorical
-    Conal
   build-depends:       
       base >=4.9 && <4.10
     , profunctors >=5.2 && <5.3

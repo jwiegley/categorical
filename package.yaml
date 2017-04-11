@@ -1,0 +1,30 @@
+name:       categorical
+version:    0.1.0.0
+synopsis:   Compiling to categories
+author:     John Wiegley
+maintainer: johnw@newartisans.com
+license:    MIT
+github:     jwiegley/categorical
+category:   System
+
+dependencies:
+  - base        >= 4.9 && < 4.10
+  - profunctors >= 5.2 && < 5.3
+  - concat
+  - ghc-prim
+  - free
+  - containers
+  - transformers
+  - mtl
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Categorical
+
+executables:
+  categorical:
+    main: Main.hs
+    source-dirs: src
+    dependencies: 
+      - categorical

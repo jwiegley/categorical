@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -13,20 +15,17 @@
 module Main where
 
 import Categorical
+import Functions
 import ConCat.AltCat (ccc)
 import ConCat.Category
 import ConCat.Syntactic (render)
 import Prelude hiding ((.), id, curry, uncurry)
 
-equation :: Num a => a -> a -> a
-equation x y = x - 3 + 7 * y
-{-# INLINE equation #-}
-
 main :: IO ()
 main = do
     putStrLn "Hello, Haskell!"
 
-    print $ ccc @(->) @(Int, Int) @Int (uncurry (equation @Int)) (10, 20)
+    print $ ccc @(->) (uncurry (equation @Int)) (10, 20)
 
     print $ render (ccc (uncurry (equation @Int)))
     print $ gather (ccc (uncurry (equation @Int)))

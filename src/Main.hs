@@ -6,33 +6,32 @@
 {-# OPTIONS_GHC -fsimpl-tick-factor=2800 #-}
 {-# OPTIONS_GHC -fexpose-all-unfoldings #-}
 
+{-# OPTIONS_GHC -dsuppress-idinfo #-}
+{-# OPTIONS_GHC -dsuppress-uniques #-}
+{-# OPTIONS_GHC -dsuppress-module-prefixes #-}
+
 module Main where
 
-import ConCat.AltCat (ccc)
-import ConCat.Syntactic (render)
--- import Control.Arrow (Kleisli(..))
-import Control.Monad
--- import Control.Monad.Free
-
 import Categorical
+import ConCat.AltCat (ccc)
+import ConCat.Category
+import ConCat.Syntactic (render)
+import Prelude hiding ((.), id, curry, uncurry)
 
 equation :: Num a => a -> a -> a
 equation x y = x - 3 + 7 * y
-
--- type Teletype = Free TeletypeF
-
--- tele :: Kleisli Teletype () ()
--- tele = Kleisli $ \() -> Free $ Get $ \c -> Free $ Put c (Free $ Put c (Pure ()))
+{-# INLINE equation #-}
 
 main :: IO ()
 main = do
     putStrLn "Hello, Haskell!"
 
+    print $ ccc @(->) @(Int, Int) @Int (uncurry (equation @Int)) (10, 20)
+
     print $ render (ccc (uncurry (equation @Int)))
     print $ gather (ccc (uncurry (equation @Int)))
-    print (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int)
-    print (eval (ccc (uncurry (equation @Int)) :: Cat (Int, Int) Int) (10, 20))
 
-    -- print $ (ccc tele :: Cat () (Teletype ()))
+    print $ ccc @Cat (uncurry (equation @Int))
+    print $ eval (ccc @Cat (uncurry (equation @Int))) (10, 20)
 
     putStrLn "Goodbye, Haskell!"

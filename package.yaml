@@ -9,22 +9,28 @@ category:   System
 
 dependencies:
   - base        >= 4.9 && < 4.10
-  - profunctors >= 5.2 && < 5.3
+  - base-orphans
   - concat
-  - ghc-prim
-  - free
   - containers
+  - free
+  - ghc-prim
+  - mtl         >= 2.2.1
+  - profunctors >= 5.2 && < 5.3
   - transformers
-  - mtl
+  - z3
+  - z3cat
 
 library:
   source-dirs: src
   exposed-modules:
     - Categorical
+    - Categorical.Types
 
-executables:
+tests:
   categorical:
     main: Main.hs
-    source-dirs: src
-    dependencies: 
+    source-dirs: test
+    dependencies:
+      - hspec == 2.*
       - categorical
+      - quickcheck-io

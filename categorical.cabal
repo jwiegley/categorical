@@ -22,38 +22,46 @@ source-repository head
 library
   exposed-modules:
       Categorical
+      Categorical.Types
   other-modules:
-      Functions
-      Main
+      Categorical.Template
       Paths_categorical
   build-depends:
       base        >= 4.9 && < 4.10
-    , profunctors >= 5.2 && < 5.3
+    , base-orphans
     , concat
-    , ghc-prim
-    , free
     , containers
+    , free
+    , ghc-prim
+    , mtl         >= 2.2.1
+    , profunctors >= 5.2 && < 5.3
     , transformers
-    , mtl
+    , z3
+    , z3cat
   hs-source-dirs:
       src
   default-language: Haskell2010
 
-executable categorical
+test-suite categorical
+  type: exitcode-stdio-1.0
   main-is: Main.hs
+  hs-source-dirs:
+      test
   build-depends:
       base        >= 4.9 && < 4.10
-    , profunctors >= 5.2 && < 5.3
+    , base-orphans
     , concat
-    , ghc-prim
-    , free
     , containers
+    , free
+    , ghc-prim
+    , mtl         >= 2.2.1
+    , profunctors >= 5.2 && < 5.3
     , transformers
-    , mtl
+    , z3
+    , z3cat
+    , hspec == 2.*
     , categorical
+    , quickcheck-io
   other-modules:
-      Categorical
       Functions
-  hs-source-dirs:
-      src
   default-language: Haskell2010

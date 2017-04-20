@@ -35,7 +35,8 @@
 
 module Main where
 
-import Categorical
+import Categorical.AST
+import Categorical.Gather
 import Categorical.Types
 import ConCat.AltCat (ccc)
 import ConCat.Category

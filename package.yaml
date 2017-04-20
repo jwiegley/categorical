@@ -24,7 +24,6 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
-    - Categorical
     - Categorical.Types
     - Categorical.AST
     - Categorical.Gather

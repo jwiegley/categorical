@@ -26,6 +26,9 @@ library:
   exposed-modules:
     - Categorical
     - Categorical.Types
+    - Categorical.AST
+    - Categorical.Gather
+    - Categorical.Template
 
 tests:
   categorical:

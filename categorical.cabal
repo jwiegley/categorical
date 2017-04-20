@@ -23,8 +23,10 @@ library
   exposed-modules:
       Categorical
       Categorical.Types
-  other-modules:
+      Categorical.AST
+      Categorical.Gather
       Categorical.Template
+  other-modules:
       Paths_categorical
   build-depends:
       base        >= 4.9 && < 4.10

@@ -4,28 +4,18 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
-module Categorical where
-
-import Prelude hiding (id, (.), curry, uncurry, const)
-
-import Control.Arrow (Kleisli(..))
-import Data.Coerce
-import Data.Monoid
-import Data.Proxy
-import Data.Set
-import Data.Tuple (swap)
+module Categorical.AST where
 
 import ConCat.Category
 import ConCat.Rep
-
-{------------------------------------------------------------------------}
+import Data.Coerce
+import Data.Tuple (swap)
+import Prelude hiding (id, (.), curry, uncurry, const)
 
 type (~>) = Cat
 type (×) = Prod Cat
@@ -332,53 +322,3 @@ instance Num a => NumCat Cat a where
     subC    = Sub
     mulC    = Mul
     powIC   = PowI
-
-{------------------------------------------------------------------------}
-
-newtype Gather a b = Gather { runGather :: Set Int }
-
-gather :: Gather a b -> Set Int
-gather = runGather
-
-instance Category Gather where
-    id = Gather empty
-    Gather f . Gather g = Gather (f <> g)
-
-instance ProductCat Gather where
-    exl = Gather empty
-    exr = Gather empty
-    Gather f &&& Gather g = Gather (f <> g)
-
-instance Num a => NumCat Gather a where
-    negateC = Gather empty
-    addC    = Gather empty
-    subC    = Gather empty
-    mulC    = Gather empty
-    powIC   = Gather empty
-
-instance ConstCat Gather Int where
-    const = Gather . singleton
-
-{------------------------------------------------------------------------}
-
-data TeletypeF r = Get (Char -> r) | Put Char r
-
-instance Show r => Show (TeletypeF r) where
-    show (Get k) = "Get " ++ show (k '?')
-    show (Put c r) = "Put " ++ show c ++ " " ++ show r
-
--- class Ok k a => TeletypeCat k a where
---     getC :: () `k` a
---     putC :: a `k` ()
-
--- class Teletype a where
---     get :: Proxy a -> a
---     put :: a -> ()
-
--- instance TeletypeCat (->) Char where
---     getC = error "getC doesn't work in plain Haskell"
---     putC = error "putC doesn't work in plain Haskell"
-
--- instance TeletypeCat (Kleisli IO) Char where
---     getC = Kleisli (\() -> getChar)
---     putC = Kleisli putChar

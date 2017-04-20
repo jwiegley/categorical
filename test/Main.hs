@@ -22,7 +22,7 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
 {-# OPTIONS_GHC -fplugin=ConCat.Plugin #-}
--- {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:trace #-}
+{-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:trace #-}
 {-# OPTIONS_GHC -fsimpl-tick-factor=1000 #-}
 {-# OPTIONS_GHC -fexpose-all-unfoldings #-}
 

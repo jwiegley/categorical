@@ -4,6 +4,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -30,7 +31,7 @@ module Categorical.Types where
 import ConCat.Category
 import Control.Arrow (Kleisli(..))
 import Control.Monad.State
-import Control.Monad.Writer
+import "newtype" Control.Newtype (Newtype(..))
 import Data.Coerce
 import Prelude hiding ((.), id, curry, uncurry, const)
 import Z3.Category
@@ -43,6 +44,22 @@ data Position
 
 newtype V (l :: Position) v = V v
     deriving (Eq, Ord, Show, Read)
+
+instance Newtype (V l v) v where
+  pack = V
+  unpack (V v) = v
+
+instance CoerceCat (->) (V l v) v where
+  coerceC (V v) = v
+
+instance CoerceCat (->) v (V l v) where
+  coerceC = V
+
+instance CoerceCat (Kleisli (State s)) (V l v) v where
+  coerceC = Kleisli $ \(V v) -> return v
+
+instance CoerceCat (Kleisli (State s)) v (V l v) where
+  coerceC = Kleisli $ \v -> return (V v)
 
 class Ok k v => ProgramCat k v where
     xfer :: forall s t.           V s v `k` V t v
@@ -58,25 +75,16 @@ instance ProgramCat (->) Int where
     add (V x, V y)  = V (x + y)
     ret (V x)       = x
 
-type Latency = Sum Int
-type Metadata = Kleisli (Writer Latency)
+type Latency = Int
 
-instance Ok Metadata Int => ProgramCat Metadata Int where
-    xfer = Kleisli $ \a -> coerce a <$ tell (Sum 5)
-    load = Kleisli $ \a -> load a   <$ tell (Sum 10)
-    mov  = Kleisli $ \a -> mov a    <$ tell (Sum 30)
-    add  = Kleisli $ \a -> add a    <$ tell (Sum 50)
-    ret  = Kleisli $ \a -> ret a    <$ tell (Sum 1)
+instance Ok (Kleisli (State Latency)) Int => ProgramCat (Kleisli (State Latency)) Int where
+    xfer = Kleisli $ \a -> coerce a <$ modify (+ 5)
+    load = Kleisli $ \a -> load a   <$ modify (+ 10)
+    mov  = Kleisli $ \a -> mov a    <$ modify (+ 30)
+    add  = Kleisli $ \a -> add a    <$ modify (+ 50)
+    ret  = Kleisli $ \a -> ret a    <$ modify (+ 1)
 
-type Feedback = Kleisli (State Latency)
-
-instance Ok Feedback Int => ProgramCat Feedback Int where
-    xfer = Kleisli $ \a -> coerce a <$ modify (<> Sum 5)
-    load = Kleisli $ \a -> load a   <$ modify (<> Sum 10)
-    mov  = Kleisli $ \a -> mov a    <$ modify (<> Sum 30)
-    add  = Kleisli $ \a -> add a    <$ modify (<> Sum 50)
-    ret  = Kleisli $ \a -> ret a    <$ modify (<> Sum 1)
-
+{-
 data NonDet k a b where
     NonDet :: (EvalE p, GenE p) => (p -> k a b) -> NonDet k a b
 
@@ -177,3 +185,4 @@ instance ProgramCat k Int => ProgramCat (NonDet k) Int where
     mov  = NonDet (\b -> if b then mov else mov)
     add  = NonDet (\b -> if b then add else add)
     ret  = NonDet (\b -> if b then ret else ret)
+-}

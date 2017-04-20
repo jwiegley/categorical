@@ -18,11 +18,12 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 
 {-# OPTIONS_GHC -Wall #-}
-{-# OPTIONS_GHC -Wno-orphan-instances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-type-defaults #-}
 
 {-# OPTIONS_GHC -fplugin=ConCat.Plugin #-}
 -- {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:trace #-}
-{-# OPTIONS_GHC -fsimpl-tick-factor=28000 #-}
+{-# OPTIONS_GHC -fsimpl-tick-factor=1000 #-}
 {-# OPTIONS_GHC -fexpose-all-unfoldings #-}
 
 {-# OPTIONS_GHC -dsuppress-idinfo #-}
@@ -34,21 +35,21 @@
 
 module Main where
 
-import           Categorical
-import           Categorical.Types
-import           ConCat.AltCat
-import           ConCat.Syntactic (render)
-import           Control.Arrow (Kleisli(..), arr)
-import           Control.Monad.State
-import           Control.Monad.Writer
-import           Data.Maybe
-import           Functions
-import           Prelude hiding ((.), id, curry, uncurry, const)
-import           Z3.Category
-import           Z3.Monad hiding (eval)
+import Categorical
+import Categorical.Types
+import ConCat.AltCat (ccc)
+import ConCat.Category
+import ConCat.Syntactic (render)
+import Control.Arrow (Kleisli(..))
+import Control.Monad.State
+import Functions
+import Prelude hiding ((.), id, curry, uncurry, const)
+import Z3.Category
 
-program :: Int -> Int -> Int -> Int
-program x y z =
+default (Int)
+
+program :: (Int, Int, Int) -> Int
+program (x, y, z) =
     let v2    :: V 'V2 Int = load  x in
     let v1    :: V 'V1 Int = load  y in
     let v3    :: V 'V3 Int = load  z in
@@ -58,9 +59,6 @@ program x y z =
     let v2''' :: V 'V2 Int = curry add  (xfer v3)  v2'' in
     ret v2'''
 {-# INLINE program #-}
-
-instance EvalE Latency where evalE = evalPrim evalInt fromInteger
-instance GenE Latency  where genE = genPrim mkFreshIntVar
 
 main :: IO ()
 main = do
@@ -76,20 +74,17 @@ main = do
 
     putStrLn "Goodbye, Haskell!"
 
-    print $ curry (curry (ccc (uncurry (uncurry program)))) 10 20 30
+    print $ ccc program (10, 20, 30)
 
-    print $ runState (runKleisli (ccc (uncurry (uncurry program)))
-                                 ((10, 20), 30)) (Sum 0)
-
-    print (runWriter (runKleisli (ccc (uncurry (uncurry program)))
-                                 ((10, 20), 30)) :: (Int, Sum Int))
+    print $ runState (runKleisli (ccc @(Kleisli (State Latency)) program)
+                                 (10, 20, 30)) 0
 
     -- Ask Z3 to find a suitable program for us using not only existential
     -- degrees of freedom, but interactions between these degrees of freedom
     -- and whatever metadata resulted from earlier choices.
-    case ccc @(Kleisli (State Latency)) (uncurry (uncurry program)) of
+    case ccc @(Kleisli (State Latency)) program of
         Kleisli f -> do
-            let k s x y z = runState (f ((x, y), z)) s
+            let k s x y z = runState (f (x, y, z)) s
             mres <- runZ3Show (ccc @Z3Cat k)
             case mres of
                 Nothing -> putStrLn "No solution!"

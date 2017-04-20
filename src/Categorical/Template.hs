@@ -15,10 +15,10 @@
 
 module Categorical.Template where
 
-import Prelude hiding (id, (.), curry, uncurry, const)
-
 import ConCat.Category
 import ConCat.Rep
+import Data.Coerce
+import Prelude hiding (id, (.), curry, uncurry, const)
 
 newtype MyCat a b = MyCat (a -> b)
 
@@ -42,6 +42,9 @@ instance BottomCat MyCat a b where
 
 instance UnknownCat MyCat a b where
     unknownC = MyCat (error "unknown")
+
+instance Coercible a b => CoerceCat MyCat a b where
+  coerceC = MyCat coerce
 
 instance ClosedCat MyCat where
     curry   (MyCat f) = MyCat (curry f)

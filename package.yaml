@@ -14,6 +14,7 @@ dependencies:
   - containers
   - free
   - ghc-prim
+  - newtype
   - mtl         >= 2.2.1
   - profunctors >= 5.2 && < 5.3
   - transformers

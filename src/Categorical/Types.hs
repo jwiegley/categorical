@@ -10,36 +10,25 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 
-{-# OPTIONS_GHC -fplugin=ConCat.Plugin #-}
-{-# OPTIONS_GHC -fsimpl-tick-factor=2800 #-}
-{-# OPTIONS_GHC -fexpose-all-unfoldings #-}
-
-{-# OPTIONS_GHC -dsuppress-idinfo #-}
-{-# OPTIONS_GHC -dsuppress-uniques #-}
-{-# OPTIONS_GHC -dsuppress-module-prefixes #-}
-
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Categorical.Types where
 
 import           ConCat.Category
 import           ConCat.Rep
-import           Control.Arrow (Kleisli(..))
 import           Control.Monad.State
 import "newtype" Control.Newtype (Newtype(..))
 import           Data.Coerce
-import           Data.Functor.Identity
-import           Data.Monoid
 import           Prelude hiding ((.), id, curry, uncurry, const)
-import           Z3.Category
 
 data Position
     = V1
@@ -53,6 +42,12 @@ newtype V (l :: Position) v = V v
 instance Newtype (V l v) v where
   pack = V
   unpack (V v) = v
+
+instance CoerceCat (->) (V l1 v) (V l2 v) where
+    coerceC = coerce
+
+instance CoerceCat (NonDet p) (V l1 v) (V l2 v) where
+    coerceC = N $ \p a -> (coerce a, p)
 
 instance CoerceCat (->) (V l v) v where
     coerceC (V v) = v
@@ -111,8 +106,8 @@ instance UnknownCat (NonDet p) a b where
     unknownC = N (\p x -> (unknownC x, p))
 
 instance Num p => ClosedCat (NonDet p) where
-    -- curry   (NonDet (Kleisli f)) = N $ \x -> pure $ \y -> f (x, y)
-    curry   (NonDet f) = error "curry NYI"
+    -- jww (2017-04-21): This is wrong
+    curry   (NonDet f) = N $ \p x -> ((\y -> fst (f p (x, y))), p)
     uncurry (NonDet f) = N $ \p (x, y) -> let (f', p') = f p x in (f' y, p')
 
 instance CoproductCat (NonDet p) where

@@ -80,8 +80,7 @@ instance ProgramCat (->) Int where
     add (V x, V y)  = V (x + y)
     ret (V x)       = x
 
-data NonDet p a b where
-    NonDet :: (p -> a -> (b, p)) -> NonDet p a b
+newtype NonDet p a b = NonDet { runNonDet :: p -> a -> (b, p) }
     deriving Functor
 
 pattern N :: (p -> a -> (b, p)) -> NonDet p a b

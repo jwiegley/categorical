@@ -38,8 +38,9 @@ module Main where
 import qualified Categorical.AST as AST
 import           Categorical.Gather
 import           Categorical.Types
-import           ConCat.AltCat (ccc)
-import           ConCat.Category
+-- import           ConCat.AltCat (ccc)
+-- import           ConCat.Category
+import           ConCat.AltCat
 import           ConCat.Syntactic (render)
 import           Control.Arrow (Kleisli(..))
 import           Control.Monad.State
@@ -85,17 +86,9 @@ main = do
     -- Ask Z3 to find a suitable program for us using not only existential
     -- degrees of freedom, but interactions between these degrees of freedom
     -- and whatever metadata resulted from earlier choices.
-    putStrLn "step 1..."
     case ccc @(NonDet Int) program of
         NonDet f -> do
-            putStrLn "step 2..."
-            let k x y z s = f s (x, y, z)
-                g = k 10 20 30
-            putStrLn "step 3..."
-            mres <- runZ3Show (ccc @Z3Cat g)
-            putStrLn "step 4..."
+            mres <- runZ3Show (ccc @Z3Cat (\(x, (y, z)) -> let (w, t) = f 0 (x, y, z) in t < 100))
             case mres of
                 Nothing -> putStrLn "No solution!"
-                Just p  -> do
-                    putStrLn "step 5..."
-                    print $ g p
+                Just k  -> print k

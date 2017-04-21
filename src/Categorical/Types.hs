@@ -55,16 +55,16 @@ instance Newtype (V l v) v where
   unpack (V v) = v
 
 instance CoerceCat (->) (V l v) v where
-  coerceC (V v) = v
+    coerceC (V v) = v
 
 instance CoerceCat (->) v (V l v) where
-  coerceC = V
+    coerceC = V
 
-instance CoerceCat (Kleisli (State s)) (V l v) v where
-  coerceC = Kleisli $ \(V v) -> return v
+instance CoerceCat (NonDet p) (V l v) v where
+    coerceC = NonDet $ \p (V v) -> (v, p)
 
-instance CoerceCat (Kleisli (State s)) v (V l v) where
-  coerceC = Kleisli $ \v -> return (V v)
+instance CoerceCat (NonDet p) v (V l v) where
+    coerceC = NonDet $ \p v -> (V v, p)
 
 class Ok k v => ProgramCat k v where
     xfer :: forall s t.           V s v `k` V t v
@@ -80,9 +80,8 @@ instance ProgramCat (->) Int where
     add (V x, V y)  = V (x + y)
     ret (V x)       = x
 
-type Latency = Int
-
-newtype NonDet p a b = NonDet { runNonDet :: p -> a -> (b, p) }
+data NonDet p a b where
+    NonDet :: (p -> a -> (b, p)) -> NonDet p a b
     deriving Functor
 
 pattern N :: (p -> a -> (b, p)) -> NonDet p a b
@@ -92,19 +91,19 @@ instance Category (NonDet p) where
     id = N (\p x -> (x, p))
     N f . N g = N (\p x -> let (y, p') = g p x in f p' y)
 
-instance Monoid p => ProductCat (NonDet p) where
+instance Num p => ProductCat (NonDet p) where
     exl = N (\p x -> (exl x, p))
     exr = N (\p x -> (exr x, p))
     N f &&& N g = N $ \p x ->
         let (f', fp) = f p x
             (g', gp) = g p x in
-        ((f', g'), fp <> gp)
+        ((f', g'), fp + gp)
 
 instance TerminalCat (NonDet p) where
     it = N (\p x -> (it x, p))
 
 instance ConstCat (NonDet p) b where
-    const b = N (\p x -> (const b x, p))
+    const b = N (\p _ -> (b, p))
 
 instance BottomCat (NonDet p) a b where
     bottomC = N (\p x -> (bottomC x, p))
@@ -112,7 +111,7 @@ instance BottomCat (NonDet p) a b where
 instance UnknownCat (NonDet p) a b where
     unknownC = N (\p x -> (unknownC x, p))
 
-instance Monoid p => ClosedCat (NonDet p) where
+instance Num p => ClosedCat (NonDet p) where
     -- curry   (NonDet (Kleisli f)) = N $ \x -> pure $ \y -> f (x, y)
     curry   (NonDet f) = error "curry NYI"
     uncurry (NonDet f) = N $ \p (x, y) -> let (f', p') = f p x in (f' y, p')
@@ -122,11 +121,11 @@ instance CoproductCat (NonDet p) where
     inr = N (\p x -> (inr x, p))
     N f ||| N g = error "(|||) NYI"
 
-instance (Monoid p, Eq a) => EqCat (NonDet p) a where
+instance (Num p, Eq a) => EqCat (NonDet p) a where
     equal    = N (\p x -> (equal x, p))
     notEqual = N (\p x -> (notEqual x, p))
 
-instance (Monoid p, Ord a) => OrdCat (NonDet p) a where
+instance (Num p, Ord a) => OrdCat (NonDet p) a where
     lessThan           = N (\p x -> (lessThan x, p))
     greaterThan        = N (\p x -> (greaterThan x, p))
     lessThanOrEqual    = N (\p x -> (lessThanOrEqual x, p))
@@ -164,13 +163,13 @@ instance (Enum a, Show a) => EnumCat (NonDet p) a where
     succC = N (\p x -> (succ x, p))
     predC = N (\p x -> (pred x, p))
 
-instance Monoid p => BoolCat (NonDet p) where
+instance Num p => BoolCat (NonDet p) where
     notC = N (\p x -> (notC x, p))
     andC = N (\p x -> (andC x, p))
     orC  = N (\p x -> (orC x, p))
     xorC = N (\p x -> (xorC x, p))
 
-instance Monoid p => IfCat (NonDet p) a where
+instance Num p => IfCat (NonDet p) a where
     ifC = N (\p x -> (ifC x, p))
 
 instance Num a => NumCat (NonDet p) a where
@@ -180,7 +179,7 @@ instance Num a => NumCat (NonDet p) a where
     mulC    = N (\p x -> (mulC x, p))
     powIC   = N (\p x -> (powIC x, p))
 
-instance ProgramCat (NonDet Latency) Int where
+instance ProgramCat (NonDet Int) Int where
     xfer = N (\l x -> (if l < 10 then xfer x else xfer x, l + 5))
     add  = N (\l x -> (if l < 10 then add  x else add  x, l + 50))
     mov  = N (\l x -> (if l < 10 then mov  x else mov  x, l + 30))

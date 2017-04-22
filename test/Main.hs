@@ -89,7 +89,8 @@ main = do
     -- and whatever metadata resulted from earlier choices.
     case ccc @(NonDet Int) program of
         NonDet f -> do
-            mres <- runZ3Show (ccc @Z3Cat (\(x, (y, z)) -> let (w, t) = f 0 (x, y, z) in t < 100))
+            mres <- runZ3Show $ ccc @Z3Cat $ \(x, (y, z)) ->
+                let (w, t) = f 0 (x, y, z) in t < 100
             case mres of
                 Nothing -> putStrLn "No solution!"
                 Just k  -> print k

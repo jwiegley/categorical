@@ -39,12 +39,14 @@ module Main where
 import qualified Categorical.AST as AST
 import           Categorical.Gather
 import           Categorical.Types
--- import           ConCat.AltCat (ccc)
--- import           ConCat.Category
-import           ConCat.AltCat
+import           ConCat.AltCat (ccc)
+import           ConCat.Category
+-- jww (2017-04-22): Switching to AltCat instances result in a plugin error
+-- import           ConCat.AltCat
 import           ConCat.Syntactic (render)
 import           Control.Arrow (Kleisli(..))
 import           Control.Monad.State
+import           Control.Monad.Writer
 import           Data.Functor.Identity
 import           Data.Monoid
 import           Functions
@@ -66,6 +68,16 @@ program (x, y, z) =
     ret v2'''
 {-# INLINE program #-}
 
+resolve :: NonDet k a b
+        -> ((a `k` b) -> Bool)
+        -> IO (Maybe (a `k` b))
+resolve (NonDet g) f = fmap g <$> runZ3 (ccc @Z3Cat (\p -> f (g p)))
+{-# INLINE resolve #-}
+
+triviallyTrue :: a -> Bool
+triviallyTrue _ = True
+{-# INLINE triviallyTrue #-}
+
 main :: IO ()
 main = do
     putStrLn "Hello, Haskell!"
@@ -80,17 +92,16 @@ main = do
 
     putStrLn "Goodbye, Haskell!"
 
+    putStrLn "Run the program directly..."
     print $ ccc program (10, 20, 30)
 
-    print $ runNonDet (ccc @(NonDet Int) program) 0 (10, 20, 30)
+    -- jww (2017-04-22): Uncommenting this gets a residual error
+    -- putStrLn "Solve for a trivially satisfied constraint..."
+    -- Just k <- resolve (ccc @(NonDet (->)) program) triviallyTrue
+    -- print $ k (10, 20, 30)
 
-    -- Ask Z3 to find a suitable program for us using not only existential
-    -- degrees of freedom, but interactions between these degrees of freedom
-    -- and whatever metadata resulted from earlier choices.
-    case ccc @(NonDet Int) program of
-        NonDet f -> do
-            mres <- runZ3Show $ ccc @Z3Cat $ \(x, (y, z)) ->
-                let (w, t) = f 0 (x, y, z) in t < 100
-            case mres of
-                Nothing -> putStrLn "No solution!"
-                Just k  -> print k
+    -- jww (2017-04-22): Uncommenting this causes a hang in GHC
+    -- putStrLn "Solve for a latency bound..."
+    -- Just k <- resolve (ccc @(NonDet (Kleisli (Writer (Sum Int)))) program) $ \p ->
+    --     getSum (execWriter (runKleisli p (10, 20, 30))) < 50
+    -- print $ runKleisli k (10, 20, 30)

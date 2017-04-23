@@ -3,9 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
@@ -39,7 +37,6 @@
 module Categorical.NonDet where
 
 import ConCat.AltCat (ccc)
-import ConCat.Category
 import ConCat.Category
 import ConCat.Rep
 import ConCat.Syntactic (Syn, app0)
@@ -147,5 +144,5 @@ solution f = runZ3 (ccc @Z3Cat f)
 {-# INLINE solution #-}
 
 resolve :: NonDet k a b -> ((a `k` b) -> Bool) -> IO (Maybe (a `k` b))
-resolve (NonDet g) f = fmap g <$> solution (\p -> f (g p))
+resolve (NonDet g) f = fmap g <$> solution (f . g)
 {-# INLINE resolve #-}

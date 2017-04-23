@@ -24,9 +24,10 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
-    - Categorical.Types
     - Categorical.AST
     - Categorical.Gather
+    - Categorical.NonDet
+    - Categorical.Program
     - Categorical.Template
 
 tests:

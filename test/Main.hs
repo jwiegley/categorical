@@ -38,7 +38,8 @@ module Main where
 
 import qualified Categorical.AST as AST
 import           Categorical.Gather
-import           Categorical.Types
+import           Categorical.NonDet
+import           Categorical.Program
 -- import           ConCat.AltCat (ccc)
 -- import           ConCat.Category
 -- jww (2017-04-22): Switching to AltCat instances result in a plugin error
@@ -56,8 +57,8 @@ import           Z3.Monad
 
 default (Int)
 
-program :: (Int, Int, Int) -> Int
-program (x, y, z) =
+program :: ((Int, Int), Int) -> Int
+program ((x, y), z) =
     let v2    :: V 'V2 Int = load  x in
     let v1    :: V 'V1 Int = load  y in
     let v3    :: V 'V3 Int = load  z in
@@ -67,16 +68,6 @@ program (x, y, z) =
     let v2''' :: V 'V2 Int = curry add  (xfer v3)  v2'' in
     ret v2'''
 {-# INLINE program #-}
-
-resolve :: NonDet k a b
-        -> ((a `k` b) -> Bool)
-        -> IO (Maybe (a `k` b))
-resolve (NonDet g) f = fmap g <$> runZ3 (ccc @Z3Cat (\p -> f (g p)))
-{-# INLINE resolve #-}
-
-triviallyTrue :: a -> Bool
-triviallyTrue _ = True
-{-# INLINE triviallyTrue #-}
 
 main :: IO ()
 main = do
@@ -92,13 +83,16 @@ main = do
 
     putStrLn "Goodbye, Haskell!"
 
+    putStrLn "Display program rendering..."
+    print $ render (ccc program)
+
     putStrLn "Run the program directly..."
-    print $ ccc program (10, 20, 30)
+    print $ ccc program ((10, 20), 30)
 
     -- jww (2017-04-22): Uncommenting this gets a residual error
     putStrLn "Solve for a trivially satisfied constraint..."
-    Just k <- resolve (ccc @(NonDet (->)) program) triviallyTrue
-    print $ k (10, 20, 30)
+    Just k <- resolve (ccc @(NonDet (->)) program) (const True)
+    print $ k ((10, 20), 30)
 
     -- jww (2017-04-22): Uncommenting this causes a hang in GHC
     -- putStrLn "Solve for a latency bound..."

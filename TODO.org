@@ -1,0 +1,6 @@
+* If V is a newtype, plugin error about missing coercion
+* If V is a type, even AltCat inlines ProgramCat
+* Getting a ccc residual trying to use Z3Cat
+:OUTPUT:
+[ccc @ Z3Cat @ p @ Bool (\ (p1 :: p) -> main (g p1))]
+:END:      

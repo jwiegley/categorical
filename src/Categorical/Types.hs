@@ -28,7 +28,7 @@ module Categorical.Types where
 import ConCat.Category
 import ConCat.Rep
 import Control.Monad.State
--- import "newtype" Control.Newtype (Newtype(..))
+import "newtype" Control.Newtype (Newtype(..))
 import Data.Coerce
 import Z3.Category
 import Prelude hiding ((.), id, curry, uncurry, const)
@@ -39,11 +39,12 @@ data Position
     | V3
     deriving (Eq, Ord, Enum, Show, Read)
 
-type V (l :: Position) v = v
+-- type V (l :: Position) v = v
+newtype V (l :: Position) v = V v
 
--- instance Newtype (V l v) v where
---     pack = V
---     unpack (V v) = v
+instance Newtype (V l v) v where
+    pack = V
+    unpack (V v) = v
 
 -- instance CoerceCat (->) (V l1 v) (V l2 v) where
 --     coerceC = coerce
@@ -70,12 +71,19 @@ class Ok k v => ProgramCat k v where
     add  :: Prod k (V s v) (V s v) `k` V s v
     ret  ::                  V s v `k` v
 
+-- instance ProgramCat (->) Int where
+--     xfer            = coerce
+--     load            = id
+--     mov (_x, y) = y
+--     add (x, y)  = x + y
+--     ret x       = x
+
 instance ProgramCat (->) Int where
     xfer            = coerce
-    load            = id
-    mov (_x, y) = y
-    add (x, y)  = x + y
-    ret x       = x
+    load            = pack
+    mov (V _x, V y) = V y
+    add (V x, V y)  = V (x + y)
+    ret             = unpack
 
 data NonDet k a b where
     NonDet :: (EvalE p, GenE p, Show p) => (p -> a `k` b) -> NonDet k a b

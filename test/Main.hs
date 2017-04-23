@@ -39,10 +39,10 @@ module Main where
 import qualified Categorical.AST as AST
 import           Categorical.Gather
 import           Categorical.Types
-import           ConCat.AltCat (ccc)
-import           ConCat.Category
+-- import           ConCat.AltCat (ccc)
+-- import           ConCat.Category
 -- jww (2017-04-22): Switching to AltCat instances result in a plugin error
--- import           ConCat.AltCat
+import           ConCat.AltCat
 import           ConCat.Syntactic (render)
 import           Control.Arrow (Kleisli(..))
 import           Control.Monad.State
@@ -96,9 +96,9 @@ main = do
     print $ ccc program (10, 20, 30)
 
     -- jww (2017-04-22): Uncommenting this gets a residual error
-    -- putStrLn "Solve for a trivially satisfied constraint..."
-    -- Just k <- resolve (ccc @(NonDet (->)) program) triviallyTrue
-    -- print $ k (10, 20, 30)
+    putStrLn "Solve for a trivially satisfied constraint..."
+    Just k <- resolve (ccc @(NonDet (->)) program) triviallyTrue
+    print $ k (10, 20, 30)
 
     -- jww (2017-04-22): Uncommenting this causes a hang in GHC
     -- putStrLn "Solve for a latency bound..."

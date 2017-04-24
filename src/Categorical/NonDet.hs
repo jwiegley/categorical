@@ -47,7 +47,7 @@ import Z3.Category
 import Prelude hiding ((.), id, curry, uncurry, const)
 
 data NonDet k a b where
-    NonDet :: (EvalE p, GenE p, Show p) => (p -> a `k` b) -> NonDet k a b
+    NonDet :: (EvalE p, GenE p) => (p -> a `k` b) -> NonDet k a b
 
 runNonDet :: NonDet k a b -> (forall p. (p -> a `k` b) -> a `k` b) -> a `k` b
 runNonDet (NonDet f) k = k f

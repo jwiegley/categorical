@@ -92,10 +92,11 @@ main = do
 
     -- jww (2017-04-22): Uncommenting this gets a residual error
     putStrLn "Solve for a trivially satisfied constraint..."
-    Just (k :**: _) <-
+    Just (k :**: x) <-
         resolve (ccc @(NonDet ((->) :**: Gather)) program) $ \(_ :**: Gather s) ->
             s < 100
-    print $ k ((10, 20), 30)
+    putStrLn $ "Solution bound: " ++ show (runGather x)
+    putStrLn $ "Solution value: " ++ show (k ((10, 20), 30))
 
     -- jww (2017-04-22): Uncommenting this causes a hang in GHC
     -- putStrLn "Solve for a latency bound..."

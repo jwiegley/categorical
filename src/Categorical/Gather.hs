@@ -10,32 +10,35 @@ module Categorical.Gather where
 import ConCat.Category
 import Data.Monoid
 import Data.Set
+-- import Data.Semiring
 import Prelude hiding (id, (.), curry, uncurry, const)
 
-newtype Gather a b = Gather { runGather :: Set Int }
+-- newtype Ringer w a = Ringer { runRinger :: Semiring w => (a, w) }
 
-gather :: Gather a b -> Set Int
+newtype Gather a b = Gather { runGather :: Int }
+
+gather :: Gather a b -> Int
 gather = runGather
 
 instance Category Gather where
-    id = Gather empty
-    Gather f . Gather g = Gather (f <> g)
+    id = Gather 0
+    Gather f . Gather g = Gather (f + g)
 
 instance ProductCat Gather where
-    exl = Gather empty
-    exr = Gather empty
-    Gather f &&& Gather g = Gather (f <> g)
+    exl = Gather 0
+    exr = Gather 0
+    Gather f &&& Gather g = Gather (f + g)
 
 instance  ClosedCat Gather where
     curry   (Gather f) = Gather f
     uncurry (Gather f) = Gather f
 
 instance Num a => NumCat Gather a where
-    negateC = Gather empty
-    addC    = Gather empty
-    subC    = Gather empty
-    mulC    = Gather empty
-    powIC   = Gather empty
+    negateC = Gather 0
+    addC    = Gather 0
+    subC    = Gather 0
+    mulC    = Gather 0
+    powIC   = Gather 0
 
 instance ConstCat Gather Int where
-    const = Gather . singleton
+    const = Gather

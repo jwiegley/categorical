@@ -94,7 +94,7 @@ main = do
     putStrLn "Solve for a trivially satisfied constraint..."
     Just (k :**: _) <-
         resolve (ccc @(NonDet ((->) :**: Gather)) program) $ \(_ :**: Gather s) ->
-            S.size s < 100
+            s < 100
     print $ k ((10, 20), 30)
 
     -- jww (2017-04-22): Uncommenting this causes a hang in GHC

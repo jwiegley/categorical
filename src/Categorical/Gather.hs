@@ -26,6 +26,10 @@ instance ProductCat Gather where
     exr = Gather empty
     Gather f &&& Gather g = Gather (f <> g)
 
+instance  ClosedCat Gather where
+    curry   (Gather f) = Gather f
+    uncurry (Gather f) = Gather f
+
 instance Num a => NumCat Gather a where
     negateC = Gather empty
     addC    = Gather empty

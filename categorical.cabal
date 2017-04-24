@@ -27,6 +27,7 @@ library
       Categorical.Program
       Categorical.Template
   other-modules:
+      Categorical.Ringer
       Paths_categorical
   build-depends:
       base        >= 4.9 && < 4.10
@@ -36,6 +37,7 @@ library
     , free
     , ghc-prim
     , newtype
+    , semiring-simple
     , mtl         >= 2.2.1
     , profunctors >= 5.2 && < 5.3
     , transformers
@@ -58,6 +60,7 @@ test-suite categorical
     , free
     , ghc-prim
     , newtype
+    , semiring-simple
     , mtl         >= 2.2.1
     , profunctors >= 5.2 && < 5.3
     , transformers

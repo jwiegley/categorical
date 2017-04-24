@@ -23,7 +23,7 @@
 
 module Categorical.Program where
 
-#define COERCE_BUG 0
+-- #define COERCE_BUG 0
 
 import           Categorical.NonDet
 import           ConCat.Category

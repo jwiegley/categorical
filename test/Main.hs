@@ -40,6 +40,7 @@ import qualified Categorical.AST as AST
 import           Categorical.Gather
 import           Categorical.NonDet
 import           Categorical.Program
+import qualified Data.Set as S
 -- import           ConCat.AltCat (ccc)
 -- import           ConCat.Category
 -- jww (2017-04-22): Switching to AltCat instances result in a plugin error
@@ -91,7 +92,9 @@ main = do
 
     -- jww (2017-04-22): Uncommenting this gets a residual error
     putStrLn "Solve for a trivially satisfied constraint..."
-    Just k <- resolve (ccc @(NonDet (->)) program) (const True)
+    Just (k :**: _) <-
+        resolve (ccc @(NonDet ((->) :**: Gather)) program) $ \(_ :**: Gather s) ->
+            S.size s < 100
     print $ k ((10, 20), 30)
 
     -- jww (2017-04-22): Uncommenting this causes a hang in GHC

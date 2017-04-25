@@ -15,7 +15,6 @@ dependencies:
   - free
   - ghc-prim
   - newtype
-  - semiring-simple
   - mtl         >= 2.2.1
   - profunctors >= 5.2 && < 5.3
   - transformers

@@ -8,12 +8,9 @@
 module Categorical.Gather where
 
 import ConCat.Category
+import ConCat.Rep
 import Data.Monoid
-import Data.Set
--- import Data.Semiring
 import Prelude hiding (id, (.), curry, uncurry, const)
-
--- newtype Ringer w a = Ringer { runRinger :: Semiring w => (a, w) }
 
 newtype Gather a b = Gather { runGather :: Int }
 
@@ -27,7 +24,7 @@ instance Category Gather where
 instance ProductCat Gather where
     exl = Gather 0
     exr = Gather 0
-    Gather f &&& Gather g = Gather (f + g)
+    Gather f &&& Gather g = Gather (max f g)
 
 instance  ClosedCat Gather where
     curry   (Gather f) = Gather f
@@ -42,3 +39,7 @@ instance Num a => NumCat Gather a where
 
 instance ConstCat Gather Int where
     const = Gather
+
+instance (HasRep a, r ~ Rep a) => RepCat Gather a r where
+    reprC = Gather 0
+    abstC = Gather 0

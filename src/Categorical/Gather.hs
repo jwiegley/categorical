@@ -1,15 +1,12 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
 
 module Categorical.Gather where
 
 import ConCat.Category
 import ConCat.Rep
-import Data.Monoid
 import Prelude hiding (id, (.), curry, uncurry, const)
 
 newtype Gather a b = Gather { runGather :: Int }

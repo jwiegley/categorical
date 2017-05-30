@@ -39,18 +39,16 @@ module Categorical.NonDet where
 import ConCat.AltCat (ccc)
 import ConCat.Category
 import ConCat.Rep
-import ConCat.Syntactic (Syn, app0)
-import Control.Monad.State
--- import "newtype" Control.Newtype (Newtype(..))
-import Data.Coerce
-import Z3.Category
+import Data.Monoid
 import Prelude hiding ((.), id, curry, uncurry, const)
+import Z3.Category
 
 data NonDet k a b where
     NonDet :: (EvalE p, GenE p) => (p -> a `k` b) -> NonDet k a b
 
 runNonDet :: NonDet k a b -> (forall p. (p -> a `k` b) -> a `k` b) -> a `k` b
 runNonDet (NonDet f) k = k f
+{-# INLINE runNonDet #-}
 
 deriving instance Functor (k a) => Functor (NonDet k a)
 
@@ -139,10 +137,6 @@ instance (NumCat k a, Num a) => NumCat (NonDet k) a where
     mulC    = NonDet (\() -> mulC)
     powIC   = NonDet (\() -> powIC)
 
-solution :: (EvalE p, GenE p) => (p -> Bool) -> IO (Maybe p)
-solution f = runZ3 (ccc @Z3Cat f)
-{-# INLINE solution #-}
-
 resolve :: NonDet k a b -> ((a `k` b) -> Bool) -> IO (Maybe (a `k` b))
-resolve (NonDet g) f = fmap g <$> solution (f . g)
+resolve (NonDet g) f = fmap g <$> runZ3 (ccc @Z3Cat (f . g))
 {-# INLINE resolve #-}

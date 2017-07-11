@@ -50,7 +50,7 @@ data Cat a b where
     LessThan           :: Ord a => a × a ~> BoolOf Cat
     GreaterThan        :: Ord a => a × a ~> BoolOf Cat
     LessThanOrEqual    :: Ord a => a × a ~> BoolOf Cat
-    GreaterThanOrEqaul :: Ord a => a × a ~> BoolOf Cat
+    GreaterThanOrEqual :: Ord a => a × a ~> BoolOf Cat
 
     -- DistribCat
     Distl :: (a × (u + v)) ~> ((a × u) + (a × v))
@@ -128,7 +128,7 @@ instance Show (Cat a b) where
         LessThan           -> "LessThan"
         GreaterThan        -> "GreaterThan"
         LessThanOrEqual    -> "LessThanOrEqual"
-        GreaterThanOrEqaul -> "GreaterThanOrEqaul"
+        GreaterThanOrEqual -> "GreaterThanOrEqual"
         Distl              -> "Distl"
         Distr              -> "Distr"
         Coerce             -> "Coerce"
@@ -183,7 +183,7 @@ eval = \case
     LessThan           -> uncurry (<)
     GreaterThan        -> uncurry (>)
     LessThanOrEqual    -> uncurry (<=)
-    GreaterThanOrEqaul -> uncurry (>=)
+    GreaterThanOrEqual -> uncurry (>=)
     Distl              -> \(a, p) -> case p of Left x -> Left (a, x)
                                                Right x -> Right (a, x)
     Distr              -> \(p, b) -> case p of Left x -> Left (x, b)
@@ -250,7 +250,7 @@ instance Ord a => OrdCat Cat a where
     lessThan           = LessThan
     greaterThan        = GreaterThan
     lessThanOrEqual    = LessThanOrEqual
-    greaterThanOrEqual = GreaterThanOrEqaul
+    greaterThanOrEqual = GreaterThanOrEqual
 
 instance Fractional a => FractionalCat Cat a where
     recipC = Recip

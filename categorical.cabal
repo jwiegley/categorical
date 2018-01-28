@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.17.0.
+-- This file has been generated from package.yaml by hpack version 0.18.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -31,7 +31,9 @@ library
   build-depends:
       base        >= 4.9 && < 4.10
     , base-orphans
-    , concat
+    , concat-classes
+    , concat-plugin
+    , concat-examples
     , containers
     , free
     , ghc-prim
@@ -53,7 +55,9 @@ test-suite categorical
   build-depends:
       base        >= 4.9 && < 4.10
     , base-orphans
-    , concat
+    , concat-classes
+    , concat-plugin
+    , concat-examples
     , containers
     , free
     , ghc-prim
@@ -67,6 +71,5 @@ test-suite categorical
     , categorical
     , quickcheck-io
   other-modules:
-      Existential
       Functions
   default-language: Haskell2010

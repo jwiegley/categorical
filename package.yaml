@@ -10,7 +10,9 @@ category:   System
 dependencies:
   - base        >= 4.9 && < 4.10
   - base-orphans
-  - concat
+  - concat-classes
+  - concat-plugin
+  - concat-examples
   - containers
   - free
   - ghc-prim
